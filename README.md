@@ -1,6 +1,6 @@
 # Chipmate — Poker Table UI (Texas Hold'em, ชิปสมมติ)
 
-ต้นแบบเว็บเกมโป๊กเกอร์ Texas Hold'em แบรนด์ **Chipmate** — เล่นกับบอทหรือสร้างห้องชวนเพื่อน
+เว็บเกมโป๊กเกอร์ Texas Hold'em แบรนด์ **Chipmate** — เล่นกับบอทหรือสร้างห้องชวนเพื่อน
 ใช้ **ชิปสมมติเท่านั้น** ไม่มีเงินจริง ไม่มีการเติมเงิน
 
 React 18 + TypeScript + Vite · ธีม dark premium + ทอง · ฟอนต์ IBM Plex Sans Thai / Outfit
@@ -20,19 +20,30 @@ bun install
 bun run dev
 ```
 
-> โปรเจกต์นี้ตั้ง `vite.config.ts` ให้ bind `127.0.0.1:5173` ไว้แล้ว
+เปิด Terminal อีกหน้าต่างเพื่อรันเซิร์ฟเวอร์ห้องออนไลน์:
+
+```bash
+bun run server
+```
+
+จากนั้นเปิด `http://127.0.0.1:5173` สร้างห้อง และทดสอบลิงก์ในแท็บอื่น
+ลิงก์ `127.0.0.1` ใช้ได้เฉพาะเครื่องเดียวกัน ไม่สามารถส่งให้เพื่อนต่างเครื่องใช้งานได้
+โหมดบอทไม่ต้องเปิดเซิร์ฟเวอร์เกม
+
+> Vite bind ที่ `127.0.0.1:5173`; เซิร์ฟเวอร์เกม bind ที่ `127.0.0.1:3001` โดยปริยาย
 
 คำสั่งอื่น:
 
 | คำสั่ง | ทำอะไร |
 | --- | --- |
 | `bun run dev` | dev server + hot reload |
-| `bun run build` | `tsc --noEmit` แล้ว `vite build` → ออกที่ `dist/` |
-| `bun run typecheck` | เช็ก type อย่างเดียว |
+| `bun run server` | เซิร์ฟเวอร์ห้องและเกมผ่าน WebSocket |
+| `bun run build` | เช็ก type ของเว็บและเซิร์ฟเวอร์ แล้ว build เว็บไปที่ `dist/` |
+| `bun run typecheck` | เช็ก type ของเว็บและเซิร์ฟเวอร์ |
+| `bun test` | ทดสอบห้องออนไลน์ |
 | `bun run preview` | เสิร์ฟไฟล์ที่ build แล้ว |
 
-เครื่องนี้ยังไม่ได้ติดตั้ง Node.js — ใช้ **Bun** ตามด้านบน (Bun อยู่ใน PATH แล้ว)
-ถ้าอยากใช้ `npm` ให้ติดตั้ง Node.js 18+ ก่อน สคริปต์ใน `package.json` ใช้ร่วมกันได้ทั้งสองตัว
+เซิร์ฟเวอร์เกมต้องใช้ Bun ส่วนเว็บ Vite สามารถ build ด้วย Node.js ได้
 
 ### ใน VS Code
 
@@ -58,9 +69,9 @@ src/
 │   ├── engine.ts            createGame / startHand / applyMove / getLegalActions / showdown
 │   └── bot.ts               สมองบอทแบบ heuristic
 │
-├── hooks/                   ← จุดต่อ backend
-│   ├── usePokerGame.ts      ครอบ engine ไว้ที่เดียว (create/applyMove) → เปลี่ยนเป็น API/WS ที่นี่
-│   ├── useChat.ts           แชต mock → เปลี่ยนเป็น WebSocket ที่นี่
+├── hooks/
+│   ├── usePokerGame.ts      เกมบอทที่รันในเบราว์เซอร์
+│   ├── useChat.ts           แชตสำหรับโหมดบอท
 │   └── useToasts.ts         แจ้งเตือนเข้า/ออก/ตาถึง
 │
 ├── components/
@@ -69,10 +80,11 @@ src/
 │   │                        PlayerList, RoomPanel, HandResultModal
 │   └── ui/                  Logo, Icon, PlayingCard, ChipIcon, Modal, ToastStack
 │
-├── screens/                 HomeScreen, LobbyScreen, TableScreen
+├── screens/                 HomeScreen, OnlineRoom, TableScreen
 ├── data/mock.ts             AVATARS, BOT_ROSTER, BLIND_PRESETS, BOT_LINES
 ├── lib/utils.ts             formatChips, copyText, buildInviteLink
 └── styles/index.css         design tokens + CSS ทั้งหมด (ไฟล์เดียว)
+server/index.ts              ห้องและเกมออนไลน์ผ่าน Bun WebSocket
 ```
 
 ## Design tokens
@@ -80,31 +92,38 @@ src/
 แก้ที่ `src/styles/index.css` ต้นไฟล์ — ไม่ต้องไล่แก้ component
 
 ```
---ink-900 #05070d   พื้นหลัง
---ink-800 #101623   แผง/topbar/sidebar
---gold    #f5b83d   accent หลัก
---mint    #7cf0a8   ปุ่ม Raise
---amber             ปุ่ม All-in
-felt: #1f8a45 → #0b4a24 (โต๊ะ)
+--ink-900 #0c110d   พื้นหลัง
+--ink-800 #172019   แผง/topbar/sidebar
+--gold    #dfc58b   accent สีแชมเปญ
+--mint    #a4c7a8   accent สีเขียวอ่อน
 ```
 
-## ส่วนไหน mock / ส่วนไหนพร้อมต่อ backend
+## ห้องออนไลน์
 
-| ส่วน | สถานะ |
-| --- | --- |
-| กติกาเกม, blinds, side pot, showdown, ประเมินมือ | **จริง** — อยู่ใน `game/` |
-| บอท | **จริง (heuristic)** — `game/bot.ts` |
-| ผู้เล่นหลายคนพร้อมกัน | **mock** — ทุกคนรันในเครื่องเดียว ยังไม่มี server |
-| แชต | **mock** — `useChat.ts` มี timeout ตอบกลับ |
-| ลิงก์ชวนเพื่อน | **mock** — `buildInviteLink` สร้าง URL ไว้ แต่ยังไม่มีห้องจริงรองรับ |
-| สถิติ/Hand history | ยังไม่มี |
+เจ้าของห้องแชร์ลิงก์ให้เพื่อนเปิดและกดเข้าห้อง เกมเริ่มได้เมื่อมีผู้เล่นออนไลน์อย่างน้อย 2 คน
+ผู้ที่เข้าระหว่างมือจะรอจนเจ้าของห้องเริ่มมือถัดไป หากห้องเต็มจะมีข้อความแจ้ง
+เซิร์ฟเวอร์เก็บสำรับและไพ่ที่ยังไม่เปิดไว้ฝั่งเซิร์ฟเวอร์ ตรวจตาและแอ็กชัน และส่งแชตให้สมาชิกในห้อง
 
-### วิธีต่อ backend
+เมื่อการเชื่อมต่อหลุด ระบบพยายามเชื่อมต่อใหม่และสำรองที่นั่ง 60 วินาที
+หากถึงตาผู้เล่นที่หลุด ระบบจะหมอบให้ หากเจ้าของห้องหลุด สิทธิ์จะโอนไปให้ผู้เล่นที่ยังออนไลน์
+การรีเฟรชแท็บสามารถกลับเข้าห้องเดิมได้ภายในเวลาสำรองที่นั่งโดยกดปุ่มเข้าห้องอีกครั้ง
 
-1. `usePokerGame.ts` — เปลี่ยน `createGame`/`applyMove` ให้ยิง API หรือส่ง event ผ่าน WebSocket
-2. `game/engine.ts` — ย้ายไปรันฝั่งเซิร์ฟเวอร์เป็น reducer (pure function อยู่แล้ว ย้ายง่าย)
-3. `useChat.ts` — เปลี่ยนจาก mock เป็น WebSocket
-4. คง `types.ts` เป็นสัญญาข้อมูลร่วมกันระหว่าง client/server
+ห้องและชิปเก็บในหน่วยความจำของเซิร์ฟเวอร์เท่านั้น จึงหายเมื่อเซิร์ฟเวอร์รีสตาร์ต
+ต้องรันเซิร์ฟเวอร์เพียงหนึ่ง instance; ยังไม่มีบัญชีผู้ใช้ ฐานข้อมูล หรือประวัติถาวร
+อย่าใช้กับเงินจริงหรืองานที่ต้องการความปลอดภัยระดับ production
+
+### เผยแพร่เพื่อเล่นต่างเครื่อง
+
+1. สร้าง Web Service แบบ Docker บน Render จาก repository นี้ โดยใช้ `Dockerfile` ที่ root
+2. ตั้ง environment variable `ALLOWED_ORIGINS` เป็น URL ของเว็บ Vercel ที่อนุญาต เช่น
+   `https://chipmate-poker.vercel.app` (ไม่ต้องมี `/` ท้าย URL) หลาย URL คั่นด้วยจุลภาค
+   ตั้ง health check path เป็น `/health` เซิร์ฟเวอร์ใช้พอร์ตจาก `PORT` ที่บริการกำหนด
+3. ในโปรเจกต์ Vercel ตั้ง `VITE_POKER_SERVER_URL` เป็น URL ของ Render โดยใช้
+   `wss://` และต่อท้าย `/ws` เช่น `wss://YOUR-SERVICE.onrender.com/ws`
+4. Deploy เว็บ Vercel ใหม่หลังตั้งค่าตัวแปร แล้วใช้ลิงก์จากเว็บ Vercel เชิญเพื่อน
+
+การตั้งค่า URL และการ deploy ต้องทำในบัญชี Render และ Vercel ของเจ้าของโปรเจกต์
+หากบริการพักเครื่องหรือรีสตาร์ต ห้องที่กำลังเล่นจะหายไป
 
 ## ข้อกำหนดของโปรเจกต์
 

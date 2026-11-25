@@ -5,8 +5,8 @@ import PokerTable from '../components/table/PokerTable'
 import SidePanel, { type PanelTab } from '../components/table/SidePanel'
 import TableHeader from '../components/table/TableHeader'
 import { BOT_LINES } from '../data/mock'
-import { useChat } from '../hooks/useChat'
-import { usePokerGame } from '../hooks/usePokerGame'
+import { useChat, type Chat } from '../hooks/useChat'
+import { usePokerGame, type PokerGame } from '../hooks/usePokerGame'
 import type { ToastTone } from '../hooks/useToasts'
 import { buildInviteLink, copyText } from '../lib/utils'
 import type { TableConfig } from '../types'
@@ -19,35 +19,36 @@ interface TableScreenProps {
 
 export default function TableScreen({ config, onLeave, notify }: TableScreenProps) {
   const game = usePokerGame({
-    mode: config.mode,
     profile: config.profile,
-    friends: config.friends,
     botCount: config.botCount,
     smallBlind: config.smallBlind,
     bigBlind: config.bigBlind,
   })
-  const inviteLink = useMemo(() => buildInviteLink(config.roomCode), [config.roomCode])
   const chat = useChat()
+  return <TableView config={config} onLeave={onLeave} notify={notify} game={game} chat={chat} />
+}
+
+export function TableView({
+  config, onLeave, notify, game, chat, canStartNext = true, waitingCount = 0,
+}: TableScreenProps & { game: PokerGame; chat: Chat; canStartNext?: boolean; waitingCount?: number }) {
+  const inviteLink = useMemo(() => buildInviteLink(config.roomCode), [config.roomCode])
   const [tab, setTab] = useState<PanelTab>('chat')
   const [panelOpen, setPanelOpen] = useState(false)
   const loggedHand = useRef(0)
   const announced = useRef(false)
 
   useEffect(() => {
+    if (config.mode === 'online') return
     if (announced.current) return
     announced.current = true
     chat.system(`คุณเข้าห้อง ${config.roomCode} แล้ว — เล่นชิปสมมติเท่านั้น`)
-    if (config.mode === 'online') {
-      for (const friend of config.friends) {
-        chat.system(`${friend.name} เข้าร่วมห้อง`)
-      }
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const { phase, handNumber, winners } = game.state
 
   useEffect(() => {
+    if (config.mode === 'online') return
     if (phase !== 'handOver' || winners.length === 0) return
     if (loggedHand.current === handNumber) return
     loggedHand.current = handNumber
@@ -85,6 +86,7 @@ export default function TableScreen({ config, onLeave, notify }: TableScreenProp
         onCopyInvite={handleCopyInvite}
         onLeave={onLeave}
         onOpenPanel={openPanel}
+        waitingCount={waitingCount}
       />
 
       <PokerTable game={game} />
@@ -109,9 +111,10 @@ export default function TableScreen({ config, onLeave, notify }: TableScreenProp
         onNext={game.nextHand}
         onRebuy={() => {
           game.rebuy()
-          game.nextHand()
+          if (config.mode === 'bot') game.nextHand()
         }}
         onLeave={onLeave}
+        canStartNext={canStartNext}
       />
     </div>
   )

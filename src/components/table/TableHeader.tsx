@@ -10,6 +10,7 @@ interface TableHeaderProps {
   onCopyInvite: () => void
   onLeave: () => void
   onOpenPanel: (panel: 'players' | 'chat' | 'room') => void
+  waitingCount?: number
 }
 
 export default function TableHeader({
@@ -18,6 +19,7 @@ export default function TableHeader({
   onCopyInvite,
   onLeave,
   onOpenPanel,
+  waitingCount = 0,
 }: TableHeaderProps) {
   return (
     <header className="topbar">
@@ -26,11 +28,14 @@ export default function TableHeader({
         <div className="room-chip">
           <span className="room-chip__label">ห้อง</span>
           <span className="room-chip__code">{config.roomCode}</span>
-          <button className="icon-btn" onClick={onCopyInvite} aria-label="คัดลอกลิงก์เชิญ">
-            <Icon name="copy" size={15} />
-          </button>
+          {config.mode === 'online' && (
+            <button className="icon-btn" onClick={onCopyInvite} aria-label="คัดลอกลิงก์เชิญ">
+              <Icon name="copy" size={15} />
+            </button>
+          )}
         </div>
-        {config.mode === 'online' && <span className="badge badge--muted">เดโม</span>}
+        {config.mode === 'online' && <span className="badge badge--muted">ออนไลน์</span>}
+        {waitingCount > 0 && <span className="badge badge--amber">รอมือถัดไป {waitingCount} คน</span>}
       </div>
 
       <div className="topbar__right">

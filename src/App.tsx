@@ -1,51 +1,21 @@
 import { useState } from 'react'
 import HomeScreen from './screens/HomeScreen'
-import LobbyScreen from './screens/LobbyScreen'
 import TableScreen from './screens/TableScreen'
+import OnlineRoom, { type OnlineIntent } from './screens/OnlineRoom'
 import ToastStack from './components/ui/ToastStack'
-import { useToasts, type ToastTone } from './hooks/useToasts'
+import { useToasts } from './hooks/useToasts'
 import { makeRoomCode } from './lib/utils'
-import type { FriendSeed, PlayerProfile, RoomDraft, TableConfig } from './types'
+import type { PlayerProfile, TableConfig } from './types'
 
 type Screen =
   | { name: 'home' }
-  | { name: 'lobby'; room: RoomDraft }
+  | { name: 'online'; intent: OnlineIntent }
   | { name: 'table'; config: TableConfig }
-
-function LobbyRoute({
-  room,
-  notify,
-  onBack,
-  onStart,
-}: {
-  room: RoomDraft
-  notify: (text: string, tone?: ToastTone) => void
-  onBack: () => void
-  onStart: (config: TableConfig) => void
-}) {
-  return (
-    <LobbyScreen
-      room={room}
-      notify={notify}
-      onLeave={onBack}
-      onStart={(friends: FriendSeed[]) =>
-        onStart({
-          mode: 'online',
-          roomCode: room.code,
-          smallBlind: room.smallBlind,
-          bigBlind: room.bigBlind,
-          profile: room.profile,
-          friends,
-          botCount: 0,
-        })
-      }
-    />
-  )
-}
 
 export default function App() {
   const [profile, setProfile] = useState<PlayerProfile>({ name: 'ผู้เล่นใหม่', avatar: '🦊' })
   const [screen, setScreen] = useState<Screen>({ name: 'home' })
+  const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get('room')?.toUpperCase())
   const { toasts, push } = useToasts()
   const displayName = profile.name.trim() || 'คุณ'
 
@@ -55,6 +25,13 @@ export default function App() {
         <HomeScreen
           profile={profile}
           onProfileChange={setProfile}
+          inviteCode={inviteCode}
+          onJoinRoom={() => {
+            if (inviteCode) setScreen({
+              name: 'online',
+              intent: { kind: 'join', code: inviteCode, profile: { ...profile, name: displayName } },
+            })
+          }}
           onPlayBot={(opts) =>
             setScreen({
               name: 'table',
@@ -64,33 +41,34 @@ export default function App() {
                 smallBlind: opts.smallBlind,
                 bigBlind: opts.bigBlind,
                 profile: { ...profile, name: displayName },
-                friends: [],
                 botCount: opts.botCount,
               },
             })
           }
           onCreateRoom={(opts) =>
             setScreen({
-              name: 'lobby',
-              room: {
-                code: makeRoomCode(),
-                smallBlind: opts.smallBlind,
-                bigBlind: opts.bigBlind,
-                maxPlayers: opts.maxPlayers,
+              name: 'online',
+              intent: {
+                kind: 'create',
+                ...opts,
                 profile: { ...profile, name: displayName },
-                friends: [],
               },
             })
           }
         />
       )}
 
-      {screen.name === 'lobby' && (
-        <LobbyRoute
-          room={screen.room}
+      {screen.name === 'online' && (
+        <OnlineRoom
+          intent={screen.intent}
           notify={push}
-          onBack={() => setScreen({ name: 'home' })}
-          onStart={(config) => setScreen({ name: 'table', config })}
+          onLeave={() => {
+            const url = new URL(window.location.href)
+            url.searchParams.delete('room')
+            window.history.replaceState(null, '', url)
+            setInviteCode(undefined)
+            setScreen({ name: 'home' })
+          }}
         />
       )}
 

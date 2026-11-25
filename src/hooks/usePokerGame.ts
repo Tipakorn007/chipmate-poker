@@ -4,13 +4,11 @@ import { chooseBotMove } from '../game/bot'
 import type { GameState, Move, PlayerSeed } from '../game/engine'
 import { applyMove, createGame, getLegalActions, startHand, totalPot } from '../game/engine'
 import { evaluateHand, holeLabel } from '../game/handEval'
-import type { PlayerProfile, FriendSeed } from '../types'
+import type { PlayerProfile } from '../types'
 import { BOT_ROSTER } from '../data/mock'
 
 export interface UsePokerGameArgs {
-  mode: 'bot' | 'online'
   profile: PlayerProfile
-  friends: FriendSeed[]
   botCount: number
   smallBlind: number
   bigBlind: number
@@ -25,22 +23,6 @@ function buildSeeds(args: UsePokerGameArgs): PlayerSeed[] {
     chips: startingChips,
     isYou: true,
     isBot: false,
-  }
-
-  if (args.mode === 'online') {
-    const friends = args.friends.length > 0 ? args.friends : BOT_ROSTER.slice(0, 2)
-    return [
-      you,
-      ...friends.map((friend, i) => ({
-        id: `friend-${i}`,
-        name: friend.name,
-        avatar: friend.avatar,
-        chips: startingChips,
-        isYou: false,
-        // Prototype only: online friends are driven by the local bot heuristic.
-        isBot: true,
-      })),
-    ]
   }
 
   const bots = BOT_ROSTER.slice(0, Math.max(1, Math.min(args.botCount, BOT_ROSTER.length)))

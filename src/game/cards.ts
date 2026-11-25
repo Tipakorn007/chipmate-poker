@@ -46,7 +46,13 @@ export function createDeck(): Card[] {
 export function shuffle<T>(items: T[]): T[] {
   const out = items.slice()
   for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
+    const range = i + 1
+    const limit = Math.floor(0x100000000 / range) * range
+    const random = new Uint32Array(1)
+    do {
+      crypto.getRandomValues(random)
+    } while (random[0] >= limit)
+    const j = random[0] % range
     const tmp = out[i]
     out[i] = out[j]
     out[j] = tmp

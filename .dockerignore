@@ -1,0 +1,15 @@
+*
+!Dockerfile
+!server/
+server/*
+!server/index.ts
+!src/
+src/*
+!src/game/
+src/game/*
+!src/game/cards.ts
+!src/game/engine.ts
+!src/game/handEval.ts
+!src/data/
+src/data/*
+!src/data/mock.ts

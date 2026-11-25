@@ -10,6 +10,8 @@ interface HomeScreenProps {
   onProfileChange: (profile: PlayerProfile) => void
   onPlayBot: (opts: { botCount: number; smallBlind: number; bigBlind: number }) => void
   onCreateRoom: (opts: { smallBlind: number; bigBlind: number; maxPlayers: number }) => void
+  inviteCode?: string
+  onJoinRoom: () => void
 }
 
 export default function HomeScreen({
@@ -17,6 +19,8 @@ export default function HomeScreen({
   onProfileChange,
   onPlayBot,
   onCreateRoom,
+  inviteCode,
+  onJoinRoom,
 }: HomeScreenProps) {
   const [botCount, setBotCount] = useState(3)
   const [blindIndex, setBlindIndex] = useState(0)
@@ -105,6 +109,11 @@ export default function HomeScreen({
               </button>
             ))}
           </div>
+          {inviteCode && (
+            <button className="btn btn--primary btn--block" onClick={onJoinRoom}>
+              เข้าห้อง {inviteCode}
+            </button>
+          )}
         </div>
 
         <div className="options">

@@ -10,6 +10,7 @@ interface HandResultModalProps {
   onNext: () => void
   onRebuy: () => void
   onLeave: () => void
+  canStartNext?: boolean
 }
 
 export default function HandResultModal({
@@ -17,6 +18,7 @@ export default function HandResultModal({
   onNext,
   onRebuy,
   onLeave,
+  canStartNext = true,
 }: HandResultModalProps) {
   const open = state.phase === 'handOver'
   const you = state.players.find((p) => p.isYou)
@@ -103,10 +105,12 @@ export default function HandResultModal({
             <button className="btn btn--primary btn--block btn--lg" onClick={onRebuy}>
               เติมชิปตัวอย่างแล้วเริ่มรอบใหม่
             </button>
-          ) : (
+          ) : canStartNext ? (
             <button className="btn btn--primary btn--block btn--lg" onClick={onNext}>
               เริ่มรอบใหม่
             </button>
+          ) : (
+            <p className="result__note">รอเจ้าของห้องเริ่มรอบใหม่</p>
           )}
           <button className="btn btn--ghost btn--block" onClick={onLeave}>
             ออกจากห้อง

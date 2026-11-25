@@ -69,15 +69,15 @@ export default function Seat({ player, index, state, x, y }: SeatProps) {
         </div>
       </div>
 
-      {!player.folded && player.cards.length > 0 && (
+      {!player.folded && (player.cards.length > 0 || (player.hiddenCardCount ?? 0) > 0) && (
         <div className="seat__cards">
-          {player.cards.map((card, cardIndex) =>
-            showFaces ? (
-              <PlayingCard key={cardKey(card)} card={card} size={player.isYou ? 'lg' : 'sm'} />
-            ) : (
-              <PlayingCard key={`${player.id}-back-${cardIndex}`} faceDown size="sm" />
-            ),
-          )}
+          {showFaces
+            ? player.cards.map((card) => (
+                <PlayingCard key={cardKey(card)} card={card} size={player.isYou ? 'lg' : 'sm'} />
+              ))
+            : Array.from({ length: player.hiddenCardCount ?? player.cards.length }, (_, cardIndex) => (
+                <PlayingCard key={`${player.id}-back-${cardIndex}`} faceDown size="sm" />
+              ))}
         </div>
       )}
 

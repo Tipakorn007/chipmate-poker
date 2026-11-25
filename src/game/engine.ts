@@ -23,6 +23,8 @@ export interface Player {
   /** Chips committed during the whole hand (drives pot + side pots). */
   totalBet: number
   cards: Card[]
+  /** Number of concealed cards in an online view; card values stay on the server. */
+  hiddenCardCount?: number
   folded: boolean
   allIn: boolean
   acted: boolean
@@ -202,7 +204,7 @@ export function startHand(state: GameState): GameState {
     bet: 0,
     totalBet: 0,
     cards: [],
-    folded: false,
+    folded: p.chips <= 0,
     allIn: false,
     acted: false,
     lastAction: null,
