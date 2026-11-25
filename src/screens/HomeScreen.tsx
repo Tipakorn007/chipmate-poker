@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import Logo from '../components/ui/Logo'
 import Icon from '../components/ui/Icon'
-import { AVATARS, BLIND_PRESETS } from '../data/mock'
+import ProfileFields from '../components/ui/ProfileFields'
+import { BLIND_PRESETS } from '../data/mock'
 import { formatChips } from '../lib/utils'
 import type { PlayerProfile } from '../types'
 
@@ -10,7 +11,6 @@ interface HomeScreenProps {
   onProfileChange: (profile: PlayerProfile) => void
   onPlayBot: (opts: { botCount: number; smallBlind: number; bigBlind: number }) => void
   onCreateRoom: (opts: { smallBlind: number; bigBlind: number; maxPlayers: number }) => void
-  inviteCode?: string
   onJoinRoom: () => void
 }
 
@@ -19,7 +19,6 @@ export default function HomeScreen({
   onProfileChange,
   onPlayBot,
   onCreateRoom,
-  inviteCode,
   onJoinRoom,
 }: HomeScreenProps) {
   const [botCount, setBotCount] = useState(3)
@@ -34,6 +33,7 @@ export default function HomeScreen({
       <header className="home__nav">
         <Logo size={32} />
         <div className="home__nav-right">
+          <button className="btn btn--ghost btn--sm" onClick={onJoinRoom}>เข้าห้องด้วยรหัส</button>
           <span className="badge badge--mint">ชิปสมมติ 100%</span>
           <span className="badge badge--muted">ไม่ใช้เงินจริง</span>
         </div>
@@ -89,31 +89,7 @@ export default function HomeScreen({
 
       <section className="home__setup">
         <div className="profile">
-          <span className="field__label">โปรไฟล์ผู้เล่น</span>
-          <input
-            className="input"
-            value={profile.name}
-            maxLength={16}
-            onChange={(e) => onProfileChange({ ...profile, name: e.target.value })}
-            placeholder="ใส่ชื่อเล่น"
-          />
-          <div className="avatar-picker">
-            {AVATARS.map((avatar) => (
-              <button
-                key={avatar}
-                className={`avatar-option ${profile.avatar === avatar ? 'is-active' : ''}`}
-                onClick={() => onProfileChange({ ...profile, avatar })}
-                aria-label={`เลือกอวตาร ${avatar}`}
-              >
-                {avatar}
-              </button>
-            ))}
-          </div>
-          {inviteCode && (
-            <button className="btn btn--primary btn--block" onClick={onJoinRoom}>
-              เข้าห้อง {inviteCode}
-            </button>
-          )}
+          <ProfileFields profile={profile} onProfileChange={onProfileChange} />
         </div>
 
         <div className="options">

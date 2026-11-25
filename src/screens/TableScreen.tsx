@@ -104,6 +104,7 @@ export function TableView({
         onCopyInvite={handleCopyInvite}
         onLeave={onLeave}
         onSendChat={() => undefined}
+        notify={notify}
       />
 
       <HandResultModal

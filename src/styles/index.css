@@ -813,6 +813,36 @@ code {
   padding: 22px;
 }
 
+.join-screen {
+  max-width: 560px;
+}
+
+.join-screen__title {
+  margin: 8px 0;
+  font-size: clamp(26px, 6vw, 36px);
+}
+
+.join-screen__intro {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.join-screen__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.join-screen__code {
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.join-screen__error {
+  margin: 0;
+  color: #ffb7a8;
+}
+
 .lobby-card__top {
   display: flex;
   gap: 8px;
@@ -835,6 +865,14 @@ code {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-faint);
+}
+
+.room-code__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .room-code__value {
@@ -2704,7 +2742,7 @@ code {
     gap: 22px;
   }
 
-  .home__nav-right .badge:last-child {
+  .home__nav-right .badge {
     display: none;
   }
 

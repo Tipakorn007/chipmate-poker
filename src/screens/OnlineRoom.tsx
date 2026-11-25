@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Icon from '../components/ui/Icon'
 import Logo from '../components/ui/Logo'
+import ShareInviteButton from '../components/ui/ShareInviteButton'
 import { getLegalActions, totalPot } from '../game/engine'
 import { evaluateHand, holeLabel } from '../game/handEval'
 import type { GameState } from '../game/engine'
@@ -115,6 +116,10 @@ function WaitingRoom({
     const ok = await copyText(inviteLink)
     notify(ok ? 'คัดลอกลิงก์เชิญแล้ว' : 'คัดลอกไม่สำเร็จ — เลือกลิงก์แล้วกด Ctrl+C', ok ? 'success' : 'warn')
   }
+  const copyCode = async () => {
+    const ok = await copyText(room.code)
+    notify(ok ? 'คัดลอกรหัสห้องแล้ว' : 'คัดลอกรหัสไม่สำเร็จ กรุณาส่งรหัสที่แสดงให้เพื่อน', ok ? 'success' : 'warn')
+  }
 
   return (
     <div className="lobby">
@@ -132,7 +137,10 @@ function WaitingRoom({
           </div>
           <div className="room-code">
             <span className="room-code__label">รหัสห้อง</span>
-            <span className="room-code__value">{room.code}</span>
+            <div className="room-code__row">
+              <span className="room-code__value">{room.code}</span>
+              <button className="btn btn--ghost btn--sm" onClick={copyCode}>คัดลอกรหัส</button>
+            </div>
           </div>
           <div className="invite-box">
             <span className="field__label">ลิงก์เชิญเพื่อน</span>
@@ -143,6 +151,7 @@ function WaitingRoom({
                 <Icon name="copy" size={16} /> คัดลอก
               </button>
             </div>
+            <ShareInviteButton inviteLink={inviteLink} notify={notify} />
           </div>
           <div className="seat-slots">
             {Array.from({ length: room.maxPlayers }, (_, index) => {

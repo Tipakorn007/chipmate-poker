@@ -1,6 +1,7 @@
 import type { Chat } from '../../hooks/useChat'
 import type { PokerGame } from '../../hooks/usePokerGame'
 import type { TableConfig } from '../../types'
+import type { ToastTone } from '../../hooks/useToasts'
 import Icon from '../ui/Icon'
 import ChatPanel from './ChatPanel'
 import PlayerList from './PlayerList'
@@ -20,6 +21,7 @@ interface SidePanelProps {
   onCopyInvite: () => void
   onLeave: () => void
   onSendChat: (text: string) => void
+  notify: (text: string, tone?: ToastTone) => void
 }
 
 export default function SidePanel({
@@ -34,6 +36,7 @@ export default function SidePanel({
   onCopyInvite,
   onLeave,
   onSendChat,
+  notify,
 }: SidePanelProps) {
   return (
     <>
@@ -81,6 +84,7 @@ export default function SidePanel({
               onCopyInvite={onCopyInvite}
               onLeave={onLeave}
               playerCount={game.state.players.length}
+              notify={notify}
             />
           )}
         </div>

@@ -1,5 +1,7 @@
 import Icon from '../ui/Icon'
+import ShareInviteButton from '../ui/ShareInviteButton'
 import type { TableConfig } from '../../types'
+import type { ToastTone } from '../../hooks/useToasts'
 
 interface RoomPanelProps {
   config: TableConfig
@@ -7,6 +9,7 @@ interface RoomPanelProps {
   onCopyInvite: () => void
   onLeave: () => void
   playerCount: number
+  notify: (text: string, tone?: ToastTone) => void
 }
 
 export default function RoomPanel({
@@ -15,6 +18,7 @@ export default function RoomPanel({
   onCopyInvite,
   onLeave,
   playerCount,
+  notify,
 }: RoomPanelProps) {
   return (
     <div className="room-panel">
@@ -35,6 +39,7 @@ export default function RoomPanel({
           <button className="btn btn--primary btn--block" onClick={onCopyInvite}>
             <Icon name="copy" size={16} /> คัดลอกลิงก์เชิญ
           </button>
+          <ShareInviteButton inviteLink={inviteLink} notify={notify} />
         </div>
       )}
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import HomeScreen from './screens/HomeScreen'
+import JoinRoomScreen from './screens/JoinRoomScreen'
 import TableScreen from './screens/TableScreen'
 import OnlineRoom, { type OnlineIntent } from './screens/OnlineRoom'
 import ToastStack from './components/ui/ToastStack'
@@ -9,15 +10,24 @@ import type { PlayerProfile, TableConfig } from './types'
 
 type Screen =
   | { name: 'home' }
+  | { name: 'join'; code: string }
   | { name: 'online'; intent: OnlineIntent }
   | { name: 'table'; config: TableConfig }
 
 export default function App() {
   const [profile, setProfile] = useState<PlayerProfile>({ name: 'ผู้เล่นใหม่', avatar: '🦊' })
-  const [screen, setScreen] = useState<Screen>({ name: 'home' })
-  const [inviteCode, setInviteCode] = useState(() => new URLSearchParams(window.location.search).get('room')?.toUpperCase())
+  const [screen, setScreen] = useState<Screen>(() => {
+    const code = new URLSearchParams(window.location.search).get('room')
+    return code === null ? { name: 'home' } : { name: 'join', code: code.toUpperCase() }
+  })
   const { toasts, push } = useToasts()
   const displayName = profile.name.trim() || 'คุณ'
+  const goHome = () => {
+    const url = new URL(window.location.href)
+    url.searchParams.delete('room')
+    window.history.replaceState(null, '', url)
+    setScreen({ name: 'home' })
+  }
 
   return (
     <div className="app">
@@ -25,13 +35,7 @@ export default function App() {
         <HomeScreen
           profile={profile}
           onProfileChange={setProfile}
-          inviteCode={inviteCode}
-          onJoinRoom={() => {
-            if (inviteCode) setScreen({
-              name: 'online',
-              intent: { kind: 'join', code: inviteCode, profile: { ...profile, name: displayName } },
-            })
-          }}
+          onJoinRoom={() => setScreen({ name: 'join', code: '' })}
           onPlayBot={(opts) =>
             setScreen({
               name: 'table',
@@ -58,17 +62,24 @@ export default function App() {
         />
       )}
 
+      {screen.name === 'join' && (
+        <JoinRoomScreen
+          initialCode={screen.code}
+          profile={profile}
+          onProfileChange={setProfile}
+          onBack={goHome}
+          onJoin={(code) => setScreen({
+            name: 'online',
+            intent: { kind: 'join', code, profile: { ...profile, name: displayName } },
+          })}
+        />
+      )}
+
       {screen.name === 'online' && (
         <OnlineRoom
           intent={screen.intent}
           notify={push}
-          onLeave={() => {
-            const url = new URL(window.location.href)
-            url.searchParams.delete('room')
-            window.history.replaceState(null, '', url)
-            setInviteCode(undefined)
-            setScreen({ name: 'home' })
-          }}
+          onLeave={goHome}
         />
       )}
 
