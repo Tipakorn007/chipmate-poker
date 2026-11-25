@@ -10,6 +10,7 @@ interface RoomPanelProps {
   onLeave: () => void
   playerCount: number
   notify: (text: string, tone?: ToastTone) => void
+  onRebuy?: () => void
 }
 
 export default function RoomPanel({
@@ -19,6 +20,7 @@ export default function RoomPanel({
   onLeave,
   playerCount,
   notify,
+  onRebuy,
 }: RoomPanelProps) {
   return (
     <div className="room-panel">
@@ -65,6 +67,12 @@ export default function RoomPanel({
           ? 'เพื่อนที่เข้าระหว่างมือจะรอเล่นในมือถัดไป'
           : 'โหมดฝึกซ้อมเล่นกับบอทในเบราว์เซอร์นี้'}
       </p>
+
+      {onRebuy && (
+        <button className="btn btn--primary btn--block" onClick={onRebuy}>
+          เติมชิปตัวอย่างสำหรับมือถัดไป
+        </button>
+      )}
 
       <button className="btn btn--ghost btn--block" onClick={onLeave}>
         <Icon name="door" size={16} /> ออกจากห้อง

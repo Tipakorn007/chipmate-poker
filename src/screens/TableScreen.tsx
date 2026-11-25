@@ -29,8 +29,8 @@ export default function TableScreen({ config, onLeave, notify }: TableScreenProp
 }
 
 export function TableView({
-  config, onLeave, notify, game, chat, canStartNext = true, waitingCount = 0,
-}: TableScreenProps & { game: PokerGame; chat: Chat; canStartNext?: boolean; waitingCount?: number }) {
+  config, onLeave, notify, game, chat, nextHandPending, waitingCount = 0,
+}: TableScreenProps & { game: PokerGame; chat: Chat; nextHandPending?: boolean; waitingCount?: number }) {
   const inviteLink = useMemo(() => buildInviteLink(config.roomCode), [config.roomCode])
   const [tab, setTab] = useState<PanelTab>('chat')
   const [panelOpen, setPanelOpen] = useState(false)
@@ -46,6 +46,9 @@ export function TableView({
   }, [])
 
   const { phase, handNumber, winners } = game.state
+  const autoNext = config.mode === 'bot'
+    ? Boolean(game.you && game.you.chips > 0 && game.state.players.filter((player) => player.chips > 0).length >= 2)
+    : Boolean(nextHandPending)
 
   useEffect(() => {
     if (config.mode === 'online') return
@@ -109,13 +112,10 @@ export function TableView({
 
       <HandResultModal
         state={game.state}
-        onNext={game.nextHand}
-        onRebuy={() => {
-          game.rebuy()
-          if (config.mode === 'bot') game.nextHand()
-        }}
+        onRebuy={game.rebuy}
         onLeave={onLeave}
-        canStartNext={canStartNext}
+        nextHandPending={autoNext}
+        mode={config.mode}
       />
     </div>
   )

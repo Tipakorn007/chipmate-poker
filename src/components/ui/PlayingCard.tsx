@@ -40,7 +40,7 @@ export default function PlayingCard({
   const label = `${rankLabel(card.rank)}${SUIT_SYMBOL[card.suit]}`
 
   return (
-    <div className={classes} aria-label={label}>
+    <div className={classes} aria-label={highlight ? `${label} เป็นส่วนหนึ่งของชุดไพ่` : label}>
       <span className="pcard__corner pcard__corner--tl">
         <span className="pcard__rank">{rankLabel(card.rank)}</span>
         <span className="pcard__suit">{SUIT_SYMBOL[card.suit]}</span>

@@ -7,18 +7,18 @@ import PlayingCard from '../ui/PlayingCard'
 
 interface HandResultModalProps {
   state: GameState
-  onNext: () => void
   onRebuy: () => void
   onLeave: () => void
-  canStartNext?: boolean
+  nextHandPending: boolean
+  mode: 'bot' | 'online'
 }
 
 export default function HandResultModal({
   state,
-  onNext,
   onRebuy,
   onLeave,
-  canStartNext = true,
+  nextHandPending,
+  mode,
 }: HandResultModalProps) {
   const open = state.phase === 'handOver'
   const you = state.players.find((p) => p.isYou)
@@ -101,17 +101,20 @@ export default function HandResultModal({
         )}
 
         <div className="result__actions">
-          {broke ? (
+          {broke && (
             <button className="btn btn--primary btn--block btn--lg" onClick={onRebuy}>
-              เติมชิปตัวอย่างแล้วเริ่มรอบใหม่
+              เติมชิปตัวอย่าง
             </button>
-          ) : canStartNext ? (
-            <button className="btn btn--primary btn--block btn--lg" onClick={onNext}>
-              เริ่มรอบใหม่
-            </button>
-          ) : (
-            <p className="result__note">รอเจ้าของห้องเริ่มรอบใหม่</p>
           )}
+          <p className="result__note">
+            {nextHandPending
+              ? 'กำลังเริ่มมือถัดไปอัตโนมัติ...'
+              : broke
+                ? 'ชิปของคุณหมดแล้ว'
+                : mode === 'bot'
+                  ? 'เกมจบแล้ว — เหลือผู้เล่นที่มีชิปไม่ถึง 2 คน'
+                  : 'รอผู้เล่นออนไลน์ที่มีชิปอย่างน้อย 2 คน'}
+          </p>
           <button className="btn btn--ghost btn--block" onClick={onLeave}>
             ออกจากห้อง
           </button>

@@ -85,6 +85,9 @@ export default function SidePanel({
               onLeave={onLeave}
               playerCount={game.state.players.length}
               notify={notify}
+              onRebuy={config.mode === 'online' && game.you?.chips === 0 &&
+                (game.state.phase === 'handOver' || (game.you.folded && game.you.cards.length === 0))
+                ? game.rebuy : undefined}
             />
           )}
         </div>

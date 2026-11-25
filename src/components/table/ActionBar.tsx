@@ -21,6 +21,10 @@ export default function ActionBar({ game }: { game: PokerGame }) {
   const statusText =
     state.phase !== 'playing'
       ? state.message
+      : you?.folded && you.cards.length === 0
+        ? you.chips === 0
+          ? 'ชิปหมด — เปิดเมนูห้องเพื่อเติมชิปตัวอย่าง'
+          : 'รอเข้าร่วมมือถัดไป'
       : isYourTurn
         ? 'ตาคุณ — เลือกแอ็กชัน'
         : `รอ ${currentActor?.name ?? 'ผู้เล่น'} กำลังตัดสินใจ`

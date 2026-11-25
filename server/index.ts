@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from 'bun'
 import { AVATARS, BLIND_PRESETS } from '../src/data/mock'
-import { applyMove, createGame, getLegalActions, startHand } from '../src/game/engine'
+import { applyMove, createGame, getLegalActions, HAND_RESULT_DELAY_MS, startHand } from '../src/game/engine'
 import type { GameState, Move, Player, PlayerSeed } from '../src/game/engine'
 import type { OnlineMessage, RoomSnapshot, ServerMessage } from '../src/game/onlineProtocol'
 
@@ -29,6 +29,8 @@ interface Room {
   game: GameState | null
   messages: OnlineMessage[]
   nextMessageId: number
+  nextHandAt: number | null
+  nextHandTimer: ReturnType<typeof setTimeout> | null
 }
 
 const RECONNECT_MS = 60_000
@@ -106,6 +108,7 @@ function snapshot(room: Room, playerId: string): RoomSnapshot {
       chips: member.chips,
     })),
     game: room.game ? viewGame(room.game, playerId) : null,
+    nextHandAt: room.nextHandAt,
     messages: room.messages,
   }
 }
@@ -191,6 +194,38 @@ function validMove(value: unknown, game: GameState, playerId: string): Move | nu
 
 export function createPokerServer(port: number, allowedOrigins: string[], hostname = '127.0.0.1') {
   const rooms = new Map<string, Room>()
+  function updateNextHand(room: Room) {
+    const game = room.game
+    const canContinue = game?.phase === 'handOver' && room.members.filter((member) => {
+      if (!member.socket) return false
+      const player = game.players.find((item) => item.id === member.id)
+      return (player?.chips ?? member.chips ?? game.startingChips) > 0
+    }).length >= 2
+    if (!canContinue) {
+      if (room.nextHandTimer) clearTimeout(room.nextHandTimer)
+      room.nextHandTimer = null
+      room.nextHandAt = null
+      return
+    }
+    if (room.nextHandTimer) return
+    room.nextHandAt = Date.now() + HAND_RESULT_DELAY_MS
+    room.nextHandTimer = setTimeout(() => {
+      room.nextHandTimer = null
+      room.nextHandAt = null
+      if (!beginNextHand(room)) {
+        console.error('Unable to start a scheduled poker hand')
+        for (const member of room.members) {
+          if (member.socket) error(member.socket, 'ไม่สามารถเริ่มมือถัดไปได้ กรุณาลองอีกครั้ง')
+        }
+        broadcast(room)
+        return
+      }
+      updateNextHand(room)
+      broadcast(room)
+    }, HAND_RESULT_DELAY_MS)
+    room.nextHandTimer.unref()
+  }
+
   const server = Bun.serve<SocketData>({
     port,
     hostname,
@@ -239,6 +274,7 @@ export function createPokerServer(port: number, allowedOrigins: string[], hostna
             const room: Room = {
               code: makeCode(rooms), hostId: member.id, members: [member], maxPlayers: value.maxPlayers,
               smallBlind: blind.smallBlind, bigBlind: blind.bigBlind, game: null, messages: [], nextMessageId: 1,
+              nextHandAt: null, nextHandTimer: null,
             }
             rooms.set(room.code, room)
             socket.data.roomCode = room.code
@@ -278,6 +314,7 @@ export function createPokerServer(port: number, allowedOrigins: string[], hostna
             socket.data.playerId = member.id
             assignHost(room)
             send(socket, { type: 'session', code: room.code, token: member.token })
+            updateNextHand(room)
             broadcast(room)
             return
           }
@@ -292,6 +329,7 @@ export function createPokerServer(port: number, allowedOrigins: string[], hostna
           socket.data = {}
           assignHost(room)
           foldDisconnectedTurns(room)
+          updateNextHand(room)
           broadcast(room)
           if (room.members.length === 0) rooms.delete(room.code)
           socket.close()
@@ -310,8 +348,11 @@ export function createPokerServer(port: number, allowedOrigins: string[], hostna
             return error(socket, 'เริ่มมือถัดไปไม่ได้ ต้องมีผู้เล่นที่มีชิปอย่างน้อย 2 คน')
           }
         } else if (value.type === 'rebuy') {
-          if (!room.game || room.game.phase !== 'handOver') return error(socket, 'เติมชิปได้เมื่อจบมือเท่านั้น')
+          if (!room.game) return error(socket, 'เกมยังไม่เริ่ม')
           const player = room.game.players.find((item) => item.id === member.id)
+          if (room.game.phase !== 'handOver' && player && (!player.folded || player.cards.length > 0)) {
+            return error(socket, 'เติมชิปได้เมื่อจบมือเท่านั้น')
+          }
           if (!player && member.chips === 0) {
             member.chips = room.game.startingChips
           } else if (player && player.chips === 0) {
@@ -342,6 +383,7 @@ export function createPokerServer(port: number, allowedOrigins: string[], hostna
         } else {
           return error(socket, 'คำสั่งไม่ถูกต้อง')
         }
+        updateNextHand(room)
         broadcast(room)
       },
       close(socket) {
@@ -352,6 +394,7 @@ export function createPokerServer(port: number, allowedOrigins: string[], hostna
         member.expiresAt = Date.now() + RECONNECT_MS
         assignHost(room)
         foldDisconnectedTurns(room)
+        updateNextHand(room)
         broadcast(room)
       },
     },
@@ -360,12 +403,17 @@ export function createPokerServer(port: number, allowedOrigins: string[], hostna
     for (const room of rooms.values()) {
       const before = room.members.length
       removeExpired(room, Date.now())
+      updateNextHand(room)
       if (room.members.length === 0) rooms.delete(room.code)
       else if (before !== room.members.length) broadcast(room)
     }
   }, 10_000)
   cleanup.unref()
-  return { server, stop: () => { clearInterval(cleanup); server.stop(true) } }
+  return { server, stop: () => {
+    clearInterval(cleanup)
+    for (const room of rooms.values()) if (room.nextHandTimer) clearTimeout(room.nextHandTimer)
+    server.stop(true)
+  } }
 }
 
 if (import.meta.main) {

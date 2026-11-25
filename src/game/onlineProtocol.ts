@@ -27,6 +27,7 @@ export interface RoomSnapshot {
   bigBlind: number
   players: OnlinePlayer[]
   game: GameState | null
+  nextHandAt: number | null
   messages: OnlineMessage[]
 }
 

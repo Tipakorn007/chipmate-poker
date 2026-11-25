@@ -34,7 +34,7 @@ class Client {
   }
 
   async waitFor(predicate) {
-    const deadline = Date.now() + 4000
+    const deadline = Date.now() + 8000
     while (Date.now() < deadline) {
       const index = this.messages.findIndex(predicate)
       if (index >= 0) return this.messages.splice(index, 1)[0]
@@ -117,13 +117,13 @@ describe('online poker', () => {
     other.send({ type: 'move', move: { kind: 'fold' } })
     expect((await other.waitFor((message) => message.type === 'error')).message).toContain('ไม่ถูกต้อง')
     actor.send({ type: 'move', move: { kind: 'fold' } })
-    await host.snapshot((room) => room.game?.phase === 'handOver')
-    host.send({ type: 'next' })
+    const finished = await host.snapshot((room) => room.game?.phase === 'handOver')
+    expect(finished.nextHandAt).toBeGreaterThan(Date.now())
     const next = await late.snapshot((room) => room.game?.handNumber === 2)
     expect(next.players.find((player) => player.id === next.playerId).waiting).toBe(false)
     expect(next.game.players).toHaveLength(4)
     expect(next.game.players.find((player) => player.isYou).cards).toHaveLength(2)
-  })
+  }, 15000)
 
   test('reconnects a reserved seat and does not allow an untrusted origin', async () => {
     server = createPokerServer(0, [origin])
@@ -157,7 +157,7 @@ describe('online poker', () => {
     expect(response.status).toBe(403)
   })
 
-  test('folds a disconnected actor and allows the remaining host to start a new hand', async () => {
+  test('waits after a disconnect and starts automatically when another player joins', async () => {
     server = createPokerServer(0, [origin])
     const url = `ws://127.0.0.1:${server.server.port}/ws`
     const host = await Client.connect(url)
@@ -174,22 +174,84 @@ describe('online poker', () => {
     host.socket.close()
     const finished = await guest.snapshot((room) => room.game?.phase === 'handOver')
     expect(finished.hostId).toBe(finished.playerId)
+    expect(finished.nextHandAt).toBeNull()
+    const late = await Client.connect(url)
+    late.send({ type: 'join', code: session.code, name: 'Late', avatar: '🐯' })
+    const lateSession = await late.waitFor((message) => message.type === 'session')
+    await late.snapshot((room) => room.players.length === 3)
+    const waiting = await guest.snapshot((room) => room.players.length === 3 && room.nextHandAt !== null)
+    expect(waiting.game.handNumber).toBe(1)
+    late.socket.close()
+    const cancelled = await guest.snapshot((room) =>
+      room.nextHandAt === null && room.players.some((player) => player.name === 'Late' && !player.connected))
+    expect(cancelled.game.handNumber).toBe(1)
+    await Bun.sleep(5200)
+    expect(guest.messages.some((message) => message.type === 'snapshot' && message.room.game?.handNumber === 2)).toBe(false)
+    const reconnected = await Client.connect(url)
+    reconnected.send({ type: 'resume', code: session.code, token: lateSession.token })
+    await reconnected.waitFor((message) => message.type === 'session')
+    const next = await reconnected.snapshot((room) => room.game?.handNumber === 2)
+    expect(next.game.players).toHaveLength(2)
+    expect(next.game.players.some((player) => player.id === hostRoom.playerId)).toBe(false)
+  }, 20000)
+
+  test('stops when chips run out and allows a busted player to rejoin a later hand', async () => {
+    server = createPokerServer(0, [origin])
+    const url = `ws://127.0.0.1:${server.server.port}/ws`
+    const host = await Client.connect(url)
+    host.send({ type: 'create', name: 'Host', avatar: '🦊', smallBlind: 5, bigBlind: 10, maxPlayers: 4 })
+    const session = await host.waitFor((message) => message.type === 'session')
+    const hostLobby = await host.snapshot()
+    const guest = await Client.connect(url)
+    guest.send({ type: 'join', code: session.code, name: 'Friend', avatar: '🐼' })
+    await guest.waitFor((message) => message.type === 'session')
+    await guest.snapshot((room) => room.players.length === 2)
+    host.send({ type: 'start' })
+
+    let finished
+    for (let handNumber = 1; handNumber <= 6; handNumber++) {
+      const playing = await host.snapshot((room) => room.game?.phase === 'playing' && room.game.handNumber === handNumber)
+      const actor = playing.game.players[playing.game.turn].id === hostLobby.playerId ? host : guest
+      const other = actor === host ? guest : host
+      actor.send({ type: 'move', move: { kind: 'allin' } })
+      await other.snapshot((room) => room.game?.phase === 'playing' && room.game.handNumber === handNumber &&
+        room.game.players[room.game.turn]?.id === room.playerId && room.game.currentBet > room.game.bigBlind)
+      other.send({ type: 'move', move: { kind: 'call' } })
+      finished = await host.snapshot((room) => room.game?.phase === 'handOver' && room.game.handNumber === handNumber)
+      if (finished.game.players.some((player) => player.chips === 0)) break
+      host.send({ type: 'next' })
+    }
+
+    const busted = finished.game.players.find((player) => player.chips === 0)
+    expect(busted).toBeDefined()
+    expect(finished.nextHandAt).toBeNull()
+    const bustedClient = busted.id === hostLobby.playerId ? host : guest
     const late = await Client.connect(url)
     late.send({ type: 'join', code: session.code, name: 'Late', avatar: '🐯' })
     await late.waitFor((message) => message.type === 'session')
-    await late.snapshot((room) => room.players.length === 3)
-    guest.send({ type: 'next' })
-    const next = await late.snapshot((room) => room.game?.handNumber === 2)
-    expect(next.game.players).toHaveLength(2)
-    expect(next.game.players.some((player) => player.id === hostRoom.playerId)).toBe(false)
-  })
+    const next = await late.snapshot((room) => room.game?.handNumber === finished.game.handNumber + 1)
+    const bustedInNext = next.game.players.find((player) => player.id === busted.id)
+    expect(bustedInNext.chips).toBe(0)
+    expect(bustedInNext.cards).toEqual([])
+
+    bustedClient.send({ type: 'rebuy' })
+    const rebought = await bustedClient.snapshot((room) =>
+      room.game?.phase === 'playing' && room.game.players.some((player) => player.isYou && player.chips === 1000))
+    expect(rebought.game.players.find((player) => player.isYou).folded).toBe(true)
+    const actorId = rebought.game.players[rebought.game.turn].id
+    const actor = actorId === next.playerId ? late : (actorId === hostLobby.playerId ? host : guest)
+    actor.send({ type: 'move', move: { kind: 'fold' } })
+    const returned = await bustedClient.snapshot((room) => room.game?.handNumber === next.game.handNumber + 1)
+    expect(returned.game.players.find((player) => player.isYou).cards).toHaveLength(2)
+  }, 20000)
 
   test('does not deal a busted player into the hand', () => {
     const seeds = ['a', 'b', 'c'].map((id, index) => ({
-      id, name: id, avatar: '🦊', chips: index === 2 ? 0 : 1000, isYou: false, isBot: false,
+      id, name: id, avatar: '🦊', chips: index === 2 ? 0 : 1000, isYou: false, isBot: index === 2,
     }))
     const game = createGame({ seeds, smallBlind: 5, bigBlind: 10 })
     expect(game.players[2].folded).toBe(true)
+    expect(game.players[2].chips).toBe(0)
     expect(game.players[2].cards).toEqual([])
     expect(applyMove(game, game.turn, { kind: 'fold' }).phase).toBe('handOver')
   })

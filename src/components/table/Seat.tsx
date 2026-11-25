@@ -10,9 +10,10 @@ interface SeatProps {
   state: GameState
   x: number
   y: number
+  highlightedCards: ReadonlySet<string>
 }
 
-export default function Seat({ player, index, state, x, y }: SeatProps) {
+export default function Seat({ player, index, state, x, y, highlightedCards }: SeatProps) {
   const isTurn = state.phase === 'playing' && state.turn === index
   const lower = y > 55
   const isDealer = state.dealerIndex === index
@@ -21,6 +22,9 @@ export default function Seat({ player, index, state, x, y }: SeatProps) {
   const showFaces = player.isYou || player.revealed
 
   const classes = ['seat', lower ? 'seat--lower' : 'seat--upper']
+  if (y < 40) classes.push('seat--top')
+  if (x < 35) classes.push('seat--left')
+  if (x > 65) classes.push('seat--right')
   if (player.isYou) classes.push('seat--you')
   if (isTurn) classes.push('seat--turn')
   if (player.folded) classes.push('seat--folded')
@@ -29,15 +33,6 @@ export default function Seat({ player, index, state, x, y }: SeatProps) {
 
   return (
     <div className={classes.join(' ')} style={{ left: `${x}%`, top: `${y}%` }}>
-      <div className={`seat__figure seat__figure--${index % 4}`} aria-hidden="true">
-        <span className="seat__figure-chair" />
-        <span className="seat__figure-torso" />
-        <span className="seat__figure-neck" />
-        <span className="seat__figure-head" />
-        <span className="seat__figure-arm seat__figure-arm--left" />
-        <span className="seat__figure-arm seat__figure-arm--right" />
-      </div>
-
       <div className="seat__body">
         <div className="seat__avatar">
           <span className="seat__emoji">{player.avatar}</span>
@@ -70,10 +65,11 @@ export default function Seat({ player, index, state, x, y }: SeatProps) {
       </div>
 
       {!player.folded && (player.cards.length > 0 || (player.hiddenCardCount ?? 0) > 0) && (
-        <div className="seat__cards">
+        <div className="seat__cards" key={state.handNumber}>
           {showFaces
             ? player.cards.map((card) => (
-                <PlayingCard key={cardKey(card)} card={card} size={player.isYou ? 'lg' : 'sm'} />
+                <PlayingCard key={cardKey(card)} card={card} size={player.isYou ? 'lg' : 'sm'}
+                  highlight={player.isYou && highlightedCards.has(cardKey(card))} />
               ))
             : Array.from({ length: player.hiddenCardCount ?? player.cards.length }, (_, cardIndex) => (
                 <PlayingCard key={`${player.id}-back-${cardIndex}`} faceDown size="sm" />

@@ -148,6 +148,16 @@ export function evaluateHand(cards: Card[]): HandValue {
   }
 }
 
+/** Cards that define the hand category, excluding unrelated kickers. */
+export function handHighlightCards(hand: HandValue): Card[] {
+  if (hand.category === 4 || hand.category === 5 || hand.category === 8) return hand.cards
+
+  const ranks = hand.category === 2 || hand.category === 6
+    ? hand.tiebreak.slice(0, 2)
+    : hand.tiebreak.slice(0, 1)
+  return hand.cards.filter((card) => ranks.includes(RANK_VALUE[card.rank]))
+}
+
 /** Short label for the pre-flop hole cards, e.g. "คู่ A" or "A สูง". */
 export function holeLabel(cards: Card[]): string {
   if (cards.length < 2) return ''

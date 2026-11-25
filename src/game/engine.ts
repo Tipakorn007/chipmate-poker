@@ -5,6 +5,7 @@ import { compareHand, evaluateHand } from './handEval'
 
 export type Street = 'preflop' | 'flop' | 'turn' | 'river'
 export type Phase = 'playing' | 'handOver'
+export const HAND_RESULT_DELAY_MS = 5000
 export type MoveKind = 'fold' | 'check' | 'call' | 'raise' | 'allin'
 
 export interface Move {
@@ -195,11 +196,7 @@ export function createGame(opts: {
 }
 
 export function startHand(state: GameState): GameState {
-  // Bots rebuy automatically so a prototype table never dries up.
-  const topped = state.players.map((p) =>
-    p.chips === 0 && p.isBot ? { ...p, chips: state.startingChips } : p,
-  )
-  const players: Player[] = topped.map((p) => ({
+  const players: Player[] = state.players.map((p) => ({
     ...p,
     bet: 0,
     totalBet: 0,

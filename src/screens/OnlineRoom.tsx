@@ -60,7 +60,6 @@ function OnlineTable({
     yourHand,
     yourHandLabel: yourHand?.text ?? (you?.cards.length === 2 ? holeLabel(you.cards) : ''),
     act: (move) => send({ type: 'move', move }),
-    nextHand: () => send({ type: 'next' }),
     rebuy: () => send({ type: 'rebuy' }),
   }
   const me = room.players.find((player) => player.id === room.playerId)
@@ -93,7 +92,7 @@ function OnlineTable({
       chat={chat}
       notify={notify}
       onLeave={onLeave}
-      canStartNext={room.hostId === room.playerId}
+      nextHandPending={typeof room.nextHandAt === 'number'}
       waitingCount={room.players.filter((player) => player.waiting && player.connected).length}
     />
   )
@@ -173,15 +172,14 @@ function WaitingRoom({
           </div>
           {waitingForHand ? (
             <>
-              <p className="demo-note">เกมกำลังดำเนินอยู่ คุณจะได้เข้าร่วมเมื่อเจ้าของห้องเริ่มมือถัดไป</p>
+              <p className="demo-note">
+                {room.game?.phase === 'handOver' && room.nextHandAt === null
+                  ? 'รอผู้เล่นออนไลน์ที่มีชิปอย่างน้อย 2 คนเพื่อเริ่มมือถัดไป'
+                  : 'เกมกำลังดำเนินอยู่ คุณจะได้เข้าร่วมมือถัดไปโดยอัตโนมัติ'}
+              </p>
               {me?.chips === 0 && room.game?.phase === 'handOver' && (
                 <button className="btn btn--primary btn--block" onClick={() => send({ type: 'rebuy' })}>
                   เติมชิปตัวอย่าง
-                </button>
-              )}
-              {isHost && room.game?.phase === 'handOver' && (
-                <button className="btn btn--primary btn--block btn--lg" onClick={() => send({ type: 'next' })}>
-                  เริ่มรอบใหม่
                 </button>
               )}
             </>

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Card } from '../game/cards'
 import { chooseBotMove } from '../game/bot'
 import type { GameState, Move, PlayerSeed } from '../game/engine'
-import { applyMove, createGame, getLegalActions, startHand, totalPot } from '../game/engine'
+import { applyMove, createGame, getLegalActions, HAND_RESULT_DELAY_MS, startHand, totalPot } from '../game/engine'
 import { evaluateHand, holeLabel } from '../game/handEval'
 import type { PlayerProfile } from '../types'
 import { BOT_ROSTER } from '../data/mock'
@@ -77,10 +77,6 @@ export function usePokerGame(args: UsePokerGameArgs) {
     })
   }, [])
 
-  const nextHand = useCallback(() => {
-    setState((prev) => startHand(prev))
-  }, [])
-
   const rebuy = useCallback(() => {
     setState((prev) => ({
       ...prev,
@@ -89,6 +85,20 @@ export function usePokerGame(args: UsePokerGameArgs) {
       ),
     }))
   }, [])
+
+  useEffect(() => {
+    if (state.phase !== 'handOver' || !you || you.chips <= 0 ||
+      state.players.filter((player) => player.chips > 0).length < 2) return
+    const timer = window.setTimeout(() => {
+      setState((prev) => {
+        const currentYou = prev.players.find((player) => player.isYou)
+        if (prev.phase !== 'handOver' || !currentYou || currentYou.chips <= 0 ||
+          prev.players.filter((player) => player.chips > 0).length < 2) return prev
+        return startHand(prev)
+      })
+    }, HAND_RESULT_DELAY_MS)
+    return () => window.clearTimeout(timer)
+  }, [state, you])
 
   // Drive bot turns with a human-ish delay.
   useEffect(() => {
@@ -118,7 +128,6 @@ export function usePokerGame(args: UsePokerGameArgs) {
     yourHand,
     yourHandLabel,
     act,
-    nextHand,
     rebuy,
   }
 }
