@@ -2555,15 +2555,54 @@ code {
 
 @media (max-width: 1080px) {
   .home__hero {
-    grid-template-columns: 1fr;
-  }
-
-  .hero__art {
-    display: none;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr);
+    gap: clamp(20px, 3vw, 36px);
   }
 
   .home__setup {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .home__hero {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'eyebrow'
+      'title'
+      'sub'
+      'art'
+      'points';
+    gap: 0;
+  }
+
+  .hero__copy {
+    display: contents;
+  }
+
+  .hero__eyebrow {
+    grid-area: eyebrow;
+  }
+
+  .hero__title {
+    grid-area: title;
+  }
+
+  .hero__sub {
+    grid-area: sub;
+  }
+
+  .hero__art {
+    grid-area: art;
+    margin-top: 20px;
+  }
+
+  .hero__points {
+    grid-area: points;
+  }
+
+  .mini-table {
+    width: min(280px, 85%);
   }
 
   .options {
@@ -2671,6 +2710,7 @@ code {
 
   .hero__title {
     font-size: clamp(30px, 9vw, 40px);
+    line-height: 1.2;
   }
 
   .hero__points li {
