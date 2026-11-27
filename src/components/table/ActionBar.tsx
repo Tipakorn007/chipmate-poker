@@ -4,8 +4,13 @@ import { STREET_LABEL } from '../../game/engine'
 import { clamp, formatChips } from '../../lib/utils'
 import ChipIcon from '../ui/ChipIcon'
 import Icon from '../ui/Icon'
+import HandResult from './HandResult'
 
-export default function ActionBar({ game }: { game: PokerGame }) {
+export default function ActionBar({ game, nextHandPending, mode }: {
+  game: PokerGame
+  nextHandPending: boolean
+  mode: 'bot' | 'online'
+}) {
   const { state, legal, isYourTurn, currentActor, you, act, pot } = game
   const [raiseTo, setRaiseTo] = useState(() => legal?.minRaiseTo ?? 0)
 
@@ -18,10 +23,16 @@ export default function ActionBar({ game }: { game: PokerGame }) {
   const canCall = Boolean(isYourTurn && legal?.canCall)
   const canRaise = Boolean(isYourTurn && legal?.canRaise)
 
+  if (state.phase === 'handOver') {
+    return (
+      <div className="action-dock">
+        <HandResult state={state} onRebuy={game.rebuy} nextHandPending={nextHandPending} mode={mode} />
+      </div>
+    )
+  }
+
   const statusText =
-    state.phase !== 'playing'
-      ? state.message
-      : you?.folded && you.cards.length === 0
+    you?.folded && you.cards.length === 0
         ? you.chips === 0
           ? 'ชิปหมด — เปิดเมนูห้องเพื่อเติมชิปตัวอย่าง'
           : 'รอเข้าร่วมมือถัดไป'

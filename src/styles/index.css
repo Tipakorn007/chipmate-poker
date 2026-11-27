@@ -1760,6 +1760,41 @@ code {
   box-shadow: 0 -12px 30px rgba(0, 0, 0, 0.35);
 }
 
+.hand-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+}
+
+.hand-result__winners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 14px;
+  min-width: 0;
+  color: #f3e5bd;
+  font-size: 13px;
+}
+
+.hand-result__winner {
+  overflow-wrap: anywhere;
+}
+
+.hand-result__hand {
+  color: #c9dbc6;
+  font-size: 11px;
+}
+
+.hand-result__next {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  color: #c9dbc6;
+  font-size: 11px;
+}
+
 .action-dock__status {
   display: flex;
   align-items: center;

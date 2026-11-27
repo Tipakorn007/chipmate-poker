@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ActionBar from '../components/table/ActionBar'
-import HandResultModal from '../components/table/HandResultModal'
 import PokerTable from '../components/table/PokerTable'
 import SidePanel, { type PanelTab } from '../components/table/SidePanel'
 import TableHeader from '../components/table/TableHeader'
@@ -56,11 +55,11 @@ export function TableView({
     if (loggedHand.current === handNumber) return
     loggedHand.current = handNumber
     const winner = game.state.players.find((p) => p.id === winners[0].playerId)
-    const total = winners.reduce((sum, w) => sum + w.amount, 0)
     chat.system(
-      `มือที่ ${handNumber}: ${winner?.name ?? 'ผู้เล่น'} ชนะ ${total} ชิป${
-        winners[0].handText ? ` ด้วย ${winners[0].handText}` : ''
-      }`,
+      `มือที่ ${handNumber}: ${winners.map((item) => {
+        const player = game.state.players.find((p) => p.id === item.playerId)
+        return `${player?.name ?? 'ผู้เล่น'} ได้ ${item.amount} ชิป${item.handText ? ` ด้วย ${item.handText}` : ''}`
+      }).join(' · ')}`,
     )
     if (winner && !winner.isYou && Math.random() > 0.45) {
       chat.player(winner.name, winner.avatar, BOT_LINES[Math.floor(Math.random() * BOT_LINES.length)])
@@ -93,7 +92,7 @@ export function TableView({
       />
 
       <PokerTable game={game} />
-      <ActionBar game={game} />
+      <ActionBar game={game} nextHandPending={autoNext} mode={config.mode} />
 
       <SidePanel
         game={game}
@@ -110,13 +109,6 @@ export function TableView({
         notify={notify}
       />
 
-      <HandResultModal
-        state={game.state}
-        onRebuy={game.rebuy}
-        onLeave={onLeave}
-        nextHandPending={autoNext}
-        mode={config.mode}
-      />
     </div>
   )
 }
