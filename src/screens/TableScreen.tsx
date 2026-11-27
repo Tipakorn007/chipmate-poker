@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import ActionBar from '../components/table/ActionBar'
+import AnimationControls from '../components/table/AnimationControls'
 import PokerTable from '../components/table/PokerTable'
 import SidePanel, { type PanelTab } from '../components/table/SidePanel'
 import TableHeader from '../components/table/TableHeader'
@@ -10,6 +11,7 @@ import type { ToastTone } from '../hooks/useToasts'
 import { buildInviteLink, copyText } from '../lib/utils'
 import type { TableConfig } from '../types'
 import type { OnlinePlayer } from '../game/onlineProtocol'
+import { useAnimationTimeline, type AnimationTimeline } from '../animation/useAnimationTimeline'
 
 interface TableScreenProps {
   config: TableConfig
@@ -25,14 +27,18 @@ export default function TableScreen({ config, onLeave, notify }: TableScreenProp
     bigBlind: config.bigBlind,
   })
   const chat = useChat()
-  return <TableView config={config} onLeave={onLeave} notify={notify} game={game} chat={chat} />
+  const timeline = useAnimationTimeline('live')
+  const { acceptSnapshot } = timeline
+  useEffect(() => acceptSnapshot(game.state), [acceptSnapshot, game.state])
+  return <TableView config={config} onLeave={onLeave} notify={notify} game={game} chat={chat} timeline={timeline} />
 }
 
 export function TableView({
-  config, onLeave, notify, game, chat, nextHandPending, waitingCount = 0, seatCapacity = 6, waitingPlayers = [],
+  config, onLeave, notify, game, chat, timeline, nextHandPending, waitingCount = 0, seatCapacity = 6, waitingPlayers = [],
 }: TableScreenProps & {
   game: PokerGame
   chat: Chat
+  timeline: AnimationTimeline
   nextHandPending?: boolean
   waitingCount?: number
   seatCapacity?: number
@@ -100,6 +106,7 @@ export function TableView({
       />
 
       <PokerTable game={game} seatCapacity={seatCapacity} waitingPlayers={waitingPlayers} />
+      <AnimationControls timeline={timeline} />
       <ActionBar game={game} nextHandPending={autoNext} mode={config.mode} />
 
       <SidePanel

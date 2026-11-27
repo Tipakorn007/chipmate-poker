@@ -2,6 +2,7 @@ import { useState } from 'react'
 import HomeScreen from './screens/HomeScreen'
 import JoinRoomScreen from './screens/JoinRoomScreen'
 import TableScreen from './screens/TableScreen'
+import AnimationDemo from './screens/AnimationDemo'
 import OnlineRoom, { type OnlineIntent } from './screens/OnlineRoom'
 import ToastStack from './components/ui/ToastStack'
 import { useToasts } from './hooks/useToasts'
@@ -13,11 +14,14 @@ type Screen =
   | { name: 'join'; code: string }
   | { name: 'online'; intent: OnlineIntent }
   | { name: 'table'; config: TableConfig }
+  | { name: 'demo' }
 
 export default function App() {
   const [profile, setProfile] = useState<PlayerProfile>({ name: 'ผู้เล่นใหม่', avatar: '🦊' })
   const [screen, setScreen] = useState<Screen>(() => {
-    const code = new URLSearchParams(window.location.search).get('room')
+    const params = new URLSearchParams(window.location.search)
+    if (params.has('demo')) return { name: 'demo' }
+    const code = params.get('room')
     return code === null ? { name: 'home' } : { name: 'join', code: code.toUpperCase() }
   })
   const { toasts, push } = useToasts()
@@ -25,6 +29,7 @@ export default function App() {
   const goHome = () => {
     const url = new URL(window.location.href)
     url.searchParams.delete('room')
+    url.searchParams.delete('demo')
     window.history.replaceState(null, '', url)
     setScreen({ name: 'home' })
   }
@@ -90,6 +95,7 @@ export default function App() {
           onLeave={() => setScreen({ name: 'home' })}
         />
       )}
+      {screen.name === 'demo' && <AnimationDemo onLeave={goHome} />}
 
       <ToastStack toasts={toasts} />
     </div>

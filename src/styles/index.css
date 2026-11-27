@@ -4122,3 +4122,214 @@ html {
     animation: none;
   }
 }
+
+/* การเดินทางของไพ่และชิปจะต่อเข้าคิวในขั้นถัดไป ไม่เล่นภาพเดิมซ้อนกับคิว */
+.table-screen .seat__cards .pcard,
+.table-screen .board .pcard,
+.table-screen .table-dealer__hand,
+.table-screen .seat__action {
+  animation: none;
+}
+
+.table-screen .seat {
+  transition: opacity 250ms ease;
+}
+
+.animation-controls {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-width: 0;
+  padding: 5px 12px;
+  color: #c3cdbf;
+  background: rgba(12, 17, 13, 0.96);
+  font-size: 11px;
+}
+
+.animation-controls__speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.animation-controls__speed select,
+.animation-controls__skip {
+  min-height: 30px;
+  padding: 3px 8px;
+  border: 1px solid rgba(223, 197, 139, 0.32);
+  border-radius: 8px;
+  color: #ede6d2;
+  background: #19271e;
+  font: inherit;
+}
+
+.animation-controls__skip {
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.animation-controls__skip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.animation-controls__status {
+  overflow: hidden;
+  color: #d7c497;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.animation-controls__error {
+  color: #ffb59d;
+}
+
+.animation-demo {
+  min-height: 100dvh;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  background: radial-gradient(ellipse at 50% 10%, #1d3628, #0c110d 65%);
+  color: #f4f1e8;
+}
+
+.animation-demo__panel {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: clamp(18px, 4vw, 36px);
+  border: 1px solid rgba(223, 197, 139, 0.22);
+  border-radius: 24px;
+  background: rgba(15, 26, 18, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+}
+
+.animation-demo__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.animation-demo__eyebrow {
+  color: #dfc58b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.animation-demo__heading h1 {
+  margin: 6px 0 2px;
+  font-size: clamp(24px, 5vw, 34px);
+}
+
+.animation-demo__heading p,
+.animation-demo__note {
+  margin: 0;
+  color: #b7c5b6;
+  font-size: 13px;
+}
+
+.animation-controls--demo {
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding: 10px;
+  border: 1px solid rgba(223, 197, 139, 0.14);
+  border-radius: 12px;
+  background: #101c15;
+}
+
+.animation-demo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.animation-demo__summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: #ede6d2;
+  font-size: 13px;
+}
+
+.animation-demo__summary strong {
+  color: #dfc58b;
+  font-variant-numeric: tabular-nums;
+}
+
+.animation-demo__path {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.animation-demo__step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-height: 88px;
+  padding: 12px;
+  border: 1px solid rgba(222, 230, 215, 0.1);
+  border-radius: 12px;
+  background: #16271c;
+  color: #a7b9a6;
+  font-size: 12px;
+}
+
+.animation-demo__step.is-active {
+  border-color: rgba(223, 197, 139, 0.65);
+  color: #f3ead4;
+  background: #263b29;
+}
+
+.animation-demo__step.is-done {
+  color: #c0d0bb;
+}
+
+.animation-demo__dot {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #718a72;
+  border-radius: 50%;
+}
+
+.animation-demo__number {
+  color: #93aa91;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.animation-demo__marker {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #f5e3ad;
+  border-radius: 50%;
+  background: #d1af68;
+  box-shadow: 0 0 12px rgba(223, 197, 139, 0.6);
+  pointer-events: none;
+}
+
+.animation-demo__note {
+  margin-top: 18px;
+}
+
+@media (max-width: 620px) {
+  .animation-controls:not(.animation-controls--demo) .animation-controls__status {
+    display: none;
+  }
+
+  .animation-demo__path {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

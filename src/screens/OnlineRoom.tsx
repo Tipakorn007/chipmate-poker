@@ -12,6 +12,7 @@ import type { ToastTone } from '../hooks/useToasts'
 import { buildInviteLink, copyText, formatChips } from '../lib/utils'
 import type { PlayerProfile, TableConfig } from '../types'
 import { TableView } from './TableScreen'
+import { useAnimationTimeline, type AnimationTimeline } from '../animation/useAnimationTimeline'
 
 export type OnlineIntent =
   | { kind: 'create'; profile: PlayerProfile; smallBlind: number; bigBlind: number; maxPlayers: number }
@@ -36,13 +37,14 @@ function serverUrl(): string {
 }
 
 function OnlineTable({
-  room, state, send, onLeave, notify,
+  room, state, send, onLeave, notify, timeline,
 }: {
   room: RoomSnapshot
   state: GameState
   send: (message: ClientMessage) => void
   onLeave: () => void
   notify: Props['notify']
+  timeline: AnimationTimeline
 }) {
   const youIndex = state.players.findIndex((player) => player.isYou)
   const you = state.players[youIndex]
@@ -90,6 +92,7 @@ function OnlineTable({
       config={config}
       game={game}
       chat={chat}
+      timeline={timeline}
       notify={notify}
       onLeave={onLeave}
       nextHandPending={typeof room.nextHandAt === 'number'}
@@ -214,6 +217,8 @@ export default function OnlineRoom({ intent, onLeave, notify }: Props) {
   const [failure, setFailure] = useState('')
   const socketRef = useRef<WebSocket | null>(null)
   const sessionRef = useRef<{ code: string; token: string } | null>(null)
+  const timeline = useAnimationTimeline('live')
+  const { acceptSnapshot, reset } = timeline
 
   useEffect(() => {
     let stopped = false
@@ -273,6 +278,9 @@ export default function OnlineRoom({ intent, onLeave, notify }: Props) {
           url.searchParams.set('room', message.code)
           window.history.replaceState(null, '', url)
         } else if (message.type === 'snapshot') {
+          const member = message.room.players.find((player) => player.id === message.room.playerId)
+          if (message.room.game && member && !member.waiting) acceptSnapshot(message.room.game)
+          else reset()
           setRoom(message.room)
           setStatus('connected')
         } else if (message.type === 'error') {
@@ -294,7 +302,9 @@ export default function OnlineRoom({ intent, onLeave, notify }: Props) {
         }
       }
       socket.onclose = (event) => {
-        if (stopped || fatal) return
+        if (stopped) return
+        reset()
+        if (fatal) return
         if (event.code === 4001) {
           setFailure('ห้องนี้ถูกเปิดด้วยเซสชันเดียวกันในแท็บอื่น')
           setStatus('failed')
@@ -314,7 +324,7 @@ export default function OnlineRoom({ intent, onLeave, notify }: Props) {
       socket?.close()
       socketRef.current = null
     }
-  }, [intent, notify])
+  }, [intent, notify, acceptSnapshot, reset])
 
   const send = useCallback((message: ClientMessage) => {
     if (socketRef.current?.readyState !== WebSocket.OPEN) {
@@ -353,6 +363,6 @@ export default function OnlineRoom({ intent, onLeave, notify }: Props) {
   }
   const pending = room.players.find((player) => player.id === room.playerId)?.waiting
   return room.game && !pending
-    ? <OnlineTable room={room} state={room.game} send={send} onLeave={leave} notify={notify} />
+    ? <OnlineTable room={room} state={room.game} send={send} onLeave={leave} notify={notify} timeline={timeline} />
     : <WaitingRoom room={room} send={send} onLeave={leave} notify={notify} />
 }
