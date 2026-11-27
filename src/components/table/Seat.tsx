@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import type { GameState, Player } from '../../game/engine'
 import { cardKey } from '../../game/cards'
 import { formatChips } from '../../lib/utils'
@@ -11,15 +12,36 @@ interface SeatProps {
   x: number
   y: number
   highlightedCards: ReadonlySet<string>
+  handLabel: string
 }
 
-export default function Seat({ player, index, state, x, y, highlightedCards }: SeatProps) {
+export default function Seat({ player, index, state, x, y, highlightedCards, handLabel }: SeatProps) {
+  const [notice, setNotice] = useState<{ text: string; actionCount: number } | null>(null)
+  const previous = useRef({ hand: state.handNumber, turn: state.turn, actionCount: state.actionCount })
   const isTurn = state.phase === 'playing' && state.turn === index
   const lower = y > 55
   const isDealer = state.dealerIndex === index
   const isSmallBlind = state.smallBlindIndex === index && state.phase === 'playing'
   const isBigBlind = state.bigBlindIndex === index && state.phase === 'playing'
   const showFaces = player.isYou || player.revealed
+
+  useEffect(() => {
+    const before = previous.current
+    // แสดงเฉพาะแอ็กชันใหม่ ไม่ย้อนเล่นป้ายจากสถานะที่เพิ่งโหลดหรือเชื่อมต่อกลับ
+    if (before.hand !== state.handNumber) {
+      setNotice(null)
+    } else if (before.turn === index && before.actionCount !== state.actionCount && player.lastAction) {
+      setNotice({ text: player.lastAction, actionCount: state.actionCount })
+    }
+    previous.current = { hand: state.handNumber, turn: state.turn, actionCount: state.actionCount }
+  }, [index, player.lastAction, state.actionCount, state.handNumber, state.turn])
+
+  useEffect(() => {
+    if (!notice) return
+    // ป้ายใช้ transform และ opacity แล้วลบออกหลังแสดง โดยไม่เปลี่ยนสถานะเกม
+    const timer = window.setTimeout(() => setNotice(null), 1900)
+    return () => window.clearTimeout(timer)
+  }, [notice])
 
   const classes = ['seat', lower ? 'seat--lower' : 'seat--upper']
   if (y < 40) classes.push('seat--top')
@@ -32,36 +54,29 @@ export default function Seat({ player, index, state, x, y, highlightedCards }: S
   if (state.phase === 'handOver' && player.winAmount > 0) classes.push('seat--winner')
 
   return (
-    <div className={classes.join(' ')} style={{ left: `${x}%`, top: `${y}%` }}>
+    <div className={classes.join(' ')} style={{ left: `${x}%`, top: `${y}%` }}
+      aria-label={`${player.name}${player.isYou ? ' คุณ' : ''}${isTurn ? ' ถึงตาเล่น' : ''}${player.folded ? ' หมอบแล้ว' : ''}`}>
       <div className="seat__body">
         <div className="seat__avatar">
+          {isTurn && <span className="seat__turn-ring" aria-hidden="true" />}
           <span className="seat__emoji">{player.avatar}</span>
           {isDealer && <span className="seat__dealer">D</span>}
         </div>
 
         <div className="seat__plate">
-          <span className="seat__name">
-            {player.name}
+          <div className="seat__name-row">
+            <span className="seat__name" title={player.name}>{player.name}</span>
             {isSmallBlind && <em className="seat__blind">SB</em>}
             {isBigBlind && <em className="seat__blind">BB</em>}
-          </span>
+          </div>
           <span className="seat__chips">
             <ChipIcon size={11} />
             {formatChips(player.chips)}
           </span>
-          <span
-            className={`seat__action ${isTurn || player.lastAction || player.folded ? '' : 'is-empty'} ${
-              isTurn ? 'is-turn' : ''
-            }`}
-          >
-            {player.folded
-              ? 'หมอบ'
-              : isTurn
-                ? 'กำลังเล่น…'
-                : player.lastAction ?? (player.allIn ? 'ออลอิน' : '')}
-          </span>
-          {isTurn && <span className="seat__timer" key={`timer-${state.actionCount}`} />}
+          {player.allIn && !player.folded && <span className="seat__allin-label">ออลอิน</span>}
         </div>
+        {notice && <span className="seat__action" key={notice.actionCount}>{notice.text}</span>}
+        {player.isYou && handLabel && <span className="seat__hand" aria-live="polite">ไพ่ของคุณ: {handLabel}</span>}
       </div>
 
       {!player.folded && (player.cards.length > 0 || (player.hiddenCardCount ?? 0) > 0) && (

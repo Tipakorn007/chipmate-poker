@@ -9,6 +9,7 @@ import { usePokerGame, type PokerGame } from '../hooks/usePokerGame'
 import type { ToastTone } from '../hooks/useToasts'
 import { buildInviteLink, copyText } from '../lib/utils'
 import type { TableConfig } from '../types'
+import type { OnlinePlayer } from '../game/onlineProtocol'
 
 interface TableScreenProps {
   config: TableConfig
@@ -28,8 +29,15 @@ export default function TableScreen({ config, onLeave, notify }: TableScreenProp
 }
 
 export function TableView({
-  config, onLeave, notify, game, chat, nextHandPending, waitingCount = 0,
-}: TableScreenProps & { game: PokerGame; chat: Chat; nextHandPending?: boolean; waitingCount?: number }) {
+  config, onLeave, notify, game, chat, nextHandPending, waitingCount = 0, seatCapacity = 6, waitingPlayers = [],
+}: TableScreenProps & {
+  game: PokerGame
+  chat: Chat
+  nextHandPending?: boolean
+  waitingCount?: number
+  seatCapacity?: number
+  waitingPlayers?: Pick<OnlinePlayer, 'id' | 'name' | 'avatar'>[]
+}) {
   const inviteLink = useMemo(() => buildInviteLink(config.roomCode), [config.roomCode])
   const [tab, setTab] = useState<PanelTab>('chat')
   const [panelOpen, setPanelOpen] = useState(false)
@@ -91,7 +99,7 @@ export function TableView({
         waitingCount={waitingCount}
       />
 
-      <PokerTable game={game} />
+      <PokerTable game={game} seatCapacity={seatCapacity} waitingPlayers={waitingPlayers} />
       <ActionBar game={game} nextHandPending={autoNext} mode={config.mode} />
 
       <SidePanel

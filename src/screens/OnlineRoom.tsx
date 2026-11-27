@@ -94,6 +94,8 @@ function OnlineTable({
       onLeave={onLeave}
       nextHandPending={typeof room.nextHandAt === 'number'}
       waitingCount={room.players.filter((player) => player.waiting && player.connected).length}
+      seatCapacity={room.maxPlayers}
+      waitingPlayers={room.players.filter((player) => !state.players.some((seat) => seat.id === player.id))}
     />
   )
 }

@@ -5,24 +5,31 @@ import { evaluateHand, handHighlightCards } from '../../game/handEval'
 import CommunityCards from './CommunityCards'
 import PotDisplay from './PotDisplay'
 import Seat from './Seat'
+import type { OnlinePlayer } from '../../game/onlineProtocol'
 
-/** Cup holders spaced around the padded rail, like a real card room table. */
-const CUPS = Array.from({ length: 10 }, (_, index) => {
-  const angle = (index / 10) * Math.PI * 2 - Math.PI / 2
-  return {
-    left: 50 + 48.6 * Math.cos(angle),
-    top: 50 + 47 * Math.sin(angle),
-  }
-})
+interface PokerTableProps {
+  game: PokerGame
+  seatCapacity: number
+  waitingPlayers?: Pick<OnlinePlayer, 'id' | 'name' | 'avatar'>[]
+}
 
-/** Seats are laid out clockwise around an ellipse, you always at the bottom. */
-export default function PokerTable({ game }: { game: PokerGame }) {
+export default function PokerTable({ game, seatCapacity, waitingPlayers = [] }: PokerTableProps) {
   const { state, pot, you } = game
-  const youSeat = state.players.findIndex((p) => p.isYou)
-  const count = state.players.length
+  const participants = [...state.players, ...waitingPlayers]
+  const count = Math.max(seatCapacity, participants.length)
+  const youIndex = state.players.findIndex((p) => p.isYou)
+  const youSlot = youIndex < 0 ? 0 : Math.floor(youIndex * count / participants.length)
   const showHand = Boolean(you && !you.folded && you.cards.length === 2)
   const hand = showHand && you ? game.yourHand ?? evaluateHand(you.cards) : null
   const highlightedCards = new Set(hand ? handHighlightCards(hand).map(cardKey) : [])
+  const positions = Array.from({ length: count }, (_, slot) => {
+    const relative = (slot - youSlot + count) % count
+    const angle = ((90 + (360 / count) * relative) * Math.PI) / 180
+    return { x: 50 + 45 * Math.cos(angle), y: 50 + 43 * Math.sin(angle) }
+  })
+  const occupiedSlots = new Map(participants.map((player, index) => [
+    Math.floor(index * count / participants.length), player,
+  ]))
 
   return (
     <div className="table-stage">
@@ -44,15 +51,6 @@ export default function PokerTable({ game }: { game: PokerGame }) {
           </svg>
           <span className="table-dealer__label">DEALER</span>
         </div>
-        {CUPS.map((cup, index) => (
-          <span
-            key={`cup-${index}`}
-            className="felt__cup"
-            style={{ left: `${cup.left}%`, top: `${cup.top}%` }}
-            aria-hidden="true"
-          />
-        ))}
-
         <div className="felt__inner">
           <div className="felt__watermark" aria-hidden="true">
             <span className="felt__brand">CHIPMATE</span>
@@ -75,15 +73,28 @@ export default function PokerTable({ game }: { game: PokerGame }) {
       </div>
 
       <div className="seats">
-        {state.players.map((player, index) => {
-          const relative = (index - youSeat + count) % count
-          const angle = ((90 - (360 / count) * relative) * Math.PI) / 180
-          let x = 50 + 45 * Math.cos(angle)
-          const y = 50 + 43 * Math.sin(angle)
-          if (y < 15 && Math.abs(x - 50) < 1) x = 36
+        {positions.map(({ x, y }, slot) => {
+          const occupant = occupiedSlots.get(slot)
+          if (!occupant) return (
+            <div key={`empty-${slot}`} className="seat seat--empty" style={{ left: `${x}%`, top: `${y}%` }}
+              aria-label="ที่นั่งว่าง">
+              <span className="seat__avatar seat__avatar--empty" aria-hidden="true" />
+              <span className="seat__empty-label">ที่นั่งว่าง</span>
+            </div>
+          )
+          const index = state.players.findIndex((player) => player.id === occupant.id)
+          if (index >= 0) return (
+            <Seat key={occupant.id} player={state.players[index]} index={index} state={state} x={x} y={y}
+              highlightedCards={highlightedCards} handLabel={hand ? game.yourHandLabel : ''} />
+          )
           return (
-            <Seat key={player.id} player={player} index={index} state={state} x={x} y={y}
-              highlightedCards={highlightedCards} />
+            <div key={occupant.id} className="seat seat--waiting" style={{ left: `${x}%`, top: `${y}%` }}>
+              <div className="seat__avatar"><span className="seat__emoji">{occupant.avatar}</span></div>
+              <div className="seat__plate">
+                <span className="seat__name">{occupant.name}</span>
+                <span className="seat__waiting-label">รอมือถัดไป</span>
+              </div>
+            </div>
           )
         })}
       </div>
