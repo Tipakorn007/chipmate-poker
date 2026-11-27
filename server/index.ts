@@ -71,7 +71,7 @@ function seed(member: Member, chips: number): PlayerSeed {
 function newPlayer(member: Member, chips: number, seat: number): Player {
   return {
     ...seed(member, chips), seat, bet: 0, totalBet: 0, cards: [], folded: false,
-    allIn: false, acted: false, lastAction: null, revealed: false, winAmount: 0,
+    allIn: false, acted: false, lastActedBet: null, lastAction: null, revealed: false, winAmount: 0,
   }
 }
 

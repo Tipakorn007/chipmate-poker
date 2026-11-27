@@ -29,6 +29,8 @@ export interface Player {
   folded: boolean
   allIn: boolean
   acted: boolean
+  /** ยอดเดิมพันที่ผู้เล่นตอบล่าสุด ใช้ตรวจว่าการเพิ่มเปิดสิทธิ์ raise อีกครั้งหรือไม่ */
+  lastActedBet: number | null
   isYou: boolean
   isBot: boolean
   lastAction: string | null
@@ -138,16 +140,19 @@ export function getLegalActions(state: GameState, index: number): LegalActions |
   const toCall = Math.max(0, state.currentBet - player.bet)
   const maxRaiseTo = player.bet + player.chips
   const minRaiseTo = Math.min(maxRaiseTo, Math.max(state.currentBet + state.minRaise, state.bigBlind))
+  const canReopen = player.lastActedBet === null || player.lastActedBet === 0 ||
+    state.currentBet - player.lastActedBet >= state.minRaise
+  const canRaise = canReopen && player.chips > toCall && maxRaiseTo > state.currentBet
   return {
     toCall,
     callAmount: Math.min(player.chips, toCall),
     canCheck: toCall === 0,
     canCall: toCall > 0,
-    canRaise: player.chips > toCall && maxRaiseTo > state.currentBet,
+    canRaise,
     isOpeningBet: state.currentBet === 0,
     minRaiseTo,
     maxRaiseTo,
-    canAllIn: player.chips > 0,
+    canAllIn: maxRaiseTo <= state.currentBet || canRaise,
   }
 }
 
@@ -165,6 +170,7 @@ export function createGame(opts: {
     folded: false,
     allIn: false,
     acted: false,
+    lastActedBet: null,
     lastAction: null,
     revealed: false,
     winAmount: 0,
@@ -195,7 +201,7 @@ export function createGame(opts: {
   return startHand(base)
 }
 
-export function startHand(state: GameState): GameState {
+export function startHand(state: GameState, shuffleDeck: (cards: Card[]) => Card[] = shuffle): GameState {
   const players: Player[] = state.players.map((p) => ({
     ...p,
     bet: 0,
@@ -204,6 +210,7 @@ export function startHand(state: GameState): GameState {
     folded: p.chips <= 0,
     allIn: false,
     acted: false,
+    lastActedBet: null,
     lastAction: null,
     revealed: false,
     winAmount: 0,
@@ -234,7 +241,7 @@ export function startHand(state: GameState): GameState {
     if (players[i].chips > 0) order.push(i)
   }
 
-  let deck = shuffle(createDeck())
+  const deck = shuffleDeck(createDeck())
   for (let round = 0; round < 2; round++) {
     for (const i of order) {
       const card = deck.pop()
@@ -284,12 +291,13 @@ export function startHand(state: GameState): GameState {
     actionCount: state.actionCount + 1,
   }
 
-  if (turn === -1) return runOutBoard(next)
+  if (turn === -1) return runOutBoard(returnUncalledBet(next))
   return next
 }
 
 export function applyMove(state: GameState, index: number, move: Move): GameState {
-  if (state.phase !== 'playing' || state.turn !== index) return state
+  const legal = getLegalActions(state, index)
+  if (!legal) return state
   const source = state.players[index]
   if (!source || source.folded || source.allIn) return state
 
@@ -301,9 +309,13 @@ export function applyMove(state: GameState, index: number, move: Move): GameStat
 
   switch (move.kind) {
     case 'fold': {
-      actor.folded = true
       actor.acted = true
-      actor.lastAction = 'หมอบ'
+      if (toCall === 0) {
+        actor.lastAction = 'เช็ค'
+      } else {
+        actor.folded = true
+        actor.lastAction = 'หมอบ'
+      }
       break
     }
     case 'check': {
@@ -328,11 +340,14 @@ export function applyMove(state: GameState, index: number, move: Move): GameStat
     }
     case 'raise':
     case 'allin': {
+      if (move.kind === 'raise' && !legal.canRaise) return state
+      if (move.kind === 'allin' && !legal.canAllIn) return state
       const maxTarget = actor.bet + actor.chips
       const requested =
-        move.kind === 'allin' ? maxTarget : Math.floor(move.amount ?? state.currentBet + minRaise)
-      let target = Math.min(Math.max(requested, currentBet + minRaise), maxTarget)
-      if (target <= currentBet) target = maxTarget // short all-in
+        move.kind === 'allin' ? maxTarget : move.amount ?? state.currentBet + minRaise
+      if (!Number.isSafeInteger(requested) || requested > maxTarget ||
+        (move.kind === 'raise' && requested < legal.minRaiseTo)) return state
+      const target = requested
       if (target <= actor.bet) return state
 
       const pay = target - actor.bet
@@ -362,6 +377,7 @@ export function applyMove(state: GameState, index: number, move: Move): GameStat
     }
   }
 
+  actor.lastActedBet = currentBet
   const next: GameState = {
     ...state,
     players,
@@ -374,14 +390,34 @@ export function applyMove(state: GameState, index: number, move: Move): GameStat
 
 function settleAfterMove(state: GameState, actorIndex: number): GameState {
   const alive = state.players.filter((p) => !p.folded)
-  if (alive.length === 1) return awardUncontested(state, alive[0].id)
+  if (alive.length === 1) return awardUncontested(returnUncalledBet(state), alive[0].id)
   if (isBettingClosed(state)) return endStreet(state)
   const turn = nextToAct(state.players, actorIndex)
   if (turn === -1) return endStreet(state)
   return { ...state, turn }
 }
 
+function returnUncalledBet(state: GameState): GameState {
+  const bets = state.players.map((player) => player.bet).sort((a, b) => b - a)
+  const unmatched = (bets[0] ?? 0) - (bets[1] ?? 0)
+  if (unmatched <= 0) return state
+  const highestBet = bets[0]
+  const players = state.players.map((player) =>
+    player.bet === highestBet
+      ? {
+          ...player,
+          chips: player.chips + unmatched,
+          bet: player.bet - unmatched,
+          totalBet: player.totalBet - unmatched,
+          allIn: false,
+        }
+      : player,
+  )
+  return { ...state, players, currentBet: highestBet - unmatched }
+}
+
 function endStreet(state: GameState): GameState {
+  state = returnUncalledBet(state)
   const alive = state.players.filter((p) => !p.folded)
   if (alive.length === 1) return awardUncontested(state, alive[0].id)
   if (state.street === 'river') return showdown(state)
@@ -390,6 +426,7 @@ function endStreet(state: GameState): GameState {
     ...p,
     bet: 0,
     acted: false,
+    lastActedBet: null,
     lastAction: p.folded ? p.lastAction : null,
   }))
   const deck = state.deck.slice()
@@ -443,16 +480,25 @@ function runOutBoard(state: GameState): GameState {
 }
 
 function awardUncontested(state: GameState, winnerId: string): GameState {
-  const amount = totalPot(state)
-  const players = state.players.map((p) => ({
-    ...p,
-    chips: p.id === winnerId ? p.chips + amount : p.chips,
-    winAmount: p.id === winnerId ? amount : 0,
-  }))
+  const pots = buildPots(state.players)
+  const refunds = ineligiblePotRefunds(pots)
+  const amount = pots.filter((pot) => pot.eligible.includes(winnerId))
+    .reduce((sum, pot) => sum + pot.amount, 0)
+  const players = state.players.map((p) => {
+    const refund = refunds.get(p.id) ?? 0
+    return {
+      ...p,
+      chips: p.chips + refund + (p.id === winnerId ? amount : 0),
+      bet: Math.max(0, p.bet - refund),
+      totalBet: p.totalBet - refund,
+      winAmount: p.id === winnerId ? amount : 0,
+    }
+  })
   const winner = players.find((p) => p.id === winnerId)
   return {
     ...state,
     players,
+    currentBet: Math.max(0, ...players.map((player) => player.bet)),
     phase: 'handOver',
     turn: -1,
     showdown: false,
@@ -470,23 +516,44 @@ function awardUncontested(state: GameState, winnerId: string): GameState {
   }
 }
 
-function buildPots(players: Player[]): { amount: number; eligible: string[] }[] {
+interface Pot {
+  amount: number
+  eligible: string[]
+  contributions: { playerId: string; amount: number }[]
+}
+
+function buildPots(players: Player[]): Pot[] {
   const levels = [...new Set(players.map((p) => p.totalBet))]
     .filter((v) => v > 0)
     .sort((a, b) => a - b)
-  const pots: { amount: number; eligible: string[] }[] = []
+  const pots: Pot[] = []
   let prev = 0
   for (const level of levels) {
     let amount = 0
     const eligible: string[] = []
+    const contributions: { playerId: string; amount: number }[] = []
     for (const p of players) {
-      amount += Math.min(p.totalBet, level) - Math.min(p.totalBet, prev)
+      const contribution = Math.min(p.totalBet, level) - Math.min(p.totalBet, prev)
+      amount += contribution
+      if (contribution > 0) contributions.push({ playerId: p.id, amount: contribution })
       if (!p.folded && p.totalBet >= level) eligible.push(p.id)
     }
-    if (amount > 0) pots.push({ amount, eligible })
+    if (amount > 0) pots.push({ amount, eligible, contributions })
     prev = level
   }
   return pots
+}
+
+function ineligiblePotRefunds(pots: Pot[]): Map<string, number> {
+  const refunds = new Map<string, number>()
+  for (const pot of pots) {
+    if (pot.eligible.length !== 0) continue
+    // คืนพอตที่ไม่มีผู้มีสิทธิ์ตามเงินที่แต่ละคนลงในพอตนั้น
+    for (const contribution of pot.contributions) {
+      refunds.set(contribution.playerId, (refunds.get(contribution.playerId) ?? 0) + contribution.amount)
+    }
+  }
+  return refunds
 }
 
 function showdown(state: GameState): GameState {
@@ -496,12 +563,13 @@ function showdown(state: GameState): GameState {
 
   const pots = buildPots(state.players)
   const payouts = new Map<string, number>()
+  const refunds = ineligiblePotRefunds(pots)
 
   for (const pot of pots) {
-    const eligible = pot.eligible.length > 0 ? pot.eligible : contenders.map((p) => p.id)
+    if (pot.eligible.length === 0) continue
     let best: HandValue | null = null
     let potWinners: string[] = []
-    for (const id of eligible) {
+    for (const id of pot.eligible) {
       const hand = hands.get(id)
       if (!hand) continue
       if (!best || compareHand(hand, best) > 0) {
@@ -512,6 +580,12 @@ function showdown(state: GameState): GameState {
       }
     }
     if (potWinners.length === 0) continue
+    // แจกเศษตามลำดับที่นั่งทางซ้ายของปุ่ม แยกสำหรับแต่ละพอต
+    const clockwise = [
+      ...state.players.slice(state.dealerIndex + 1),
+      ...state.players.slice(0, state.dealerIndex + 1),
+    ].map((player) => player.id)
+    potWinners.sort((a, b) => clockwise.indexOf(a) - clockwise.indexOf(b))
     const share = Math.floor(pot.amount / potWinners.length)
     let remainder = pot.amount - share * potWinners.length
     for (const id of potWinners) {
@@ -523,9 +597,12 @@ function showdown(state: GameState): GameState {
 
   const players = state.players.map((p) => {
     const payout = payouts.get(p.id) ?? 0
+    const refund = refunds.get(p.id) ?? 0
     return {
       ...p,
-      chips: p.chips + payout,
+      chips: p.chips + payout + refund,
+      bet: Math.max(0, p.bet - refund),
+      totalBet: p.totalBet - refund,
       winAmount: payout,
       revealed: !p.folded,
       lastAction: p.folded ? p.lastAction : p.lastAction,
@@ -553,6 +630,7 @@ function showdown(state: GameState): GameState {
   return {
     ...state,
     players,
+    currentBet: Math.max(0, ...players.map((player) => player.bet)),
     phase: 'handOver',
     turn: -1,
     showdown: true,
